@@ -16,10 +16,11 @@ import Dashboard from "./components/Dashboard";
 import ODRequestForm from "./components/ODRequestForm";
 import ODRequestList from "./components/ODRequestList";
 import FacultyODRequestList from "./components/FacultyODRequestList";
+import HODDashboard from "./components/HODDashboard";
 import LandingPage from "./components/LandingPage";
 import { useAuth } from "./contexts/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
-import "./styles/components.css"; 
+import "./styles/components.css";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user } = useAuth();
@@ -84,6 +85,16 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRoles={["faculty"]}>
                     <FacultyODRequestList />
+                  </ProtectedRoute>
+                }
+              />
+
+              {}
+              <Route
+                path="/hod/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["hod"]}>
+                    <HODDashboard />
                   </ProtectedRoute>
                 }
               />

@@ -3,6 +3,7 @@ import {
   Container,
   Paper,
   Typography,
+  Box,
   Table,
   TableBody,
   TableCell,
@@ -16,47 +17,34 @@ import {
   DialogActions,
   TextField,
   Alert,
-  Box,
   Chip,
-  IconButton,
-  Tooltip,
 } from "@mui/material";
-import {
-  Check as CheckIcon,
-  Close as CloseIcon,
-  Visibility as VisibilityIcon,
-} from "@mui/icons-material";
 import axios from "axios";
 
-const FacultyODRequestList = () => {
+const HODDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [comment, setComment] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
-  const [action, setAction] = useState("");
-  const [viewProofDialogOpen, setViewProofDialogOpen] = useState(false);
 
   const fetchRequests = async () => {
     try {
-      console.log("Fetching faculty requests...");
+      console.log("Fetching HOD requests...");
       const token = localStorage.getItem("token");
       if (!token) {
         setError("Authentication token not found. Please login again.");
         return;
       }
 
-      const res = await axios.get(
-        "http://localhost:5000/api/od-requests/faculty",
-        {
-          headers: {
-            "x-auth-token": token,
-          },
-        }
-      );
+      const res = await axios.get("http://localhost:5000/api/od-requests/hod", {
+        headers: {
+          "x-auth-token": token,
+        },
+      });
 
-      console.log("Faculty requests response:", res.data);
+      console.log("HOD requests response:", res.data);
       if (Array.isArray(res.data)) {
         setRequests(res.data);
         setError("");
@@ -67,12 +55,16 @@ const FacultyODRequestList = () => {
     } catch (err) {
       console.error("Error fetching requests:", err);
       if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
         console.error("Error response:", err.response.data);
         setError(err.response.data.message || "Error fetching requests");
       } else if (err.request) {
+        // The request was made but no response was received
         console.error("No response received:", err.request);
         setError("No response from server. Please check your connection.");
       } else {
+        // Something happened in setting up the request that triggered an Error
         console.error("Error setting up request:", err.message);
         setError("Error setting up request: " + err.message);
       }
@@ -83,15 +75,13 @@ const FacultyODRequestList = () => {
     fetchRequests();
   }, []);
 
-  const handleApprove = (requestId) => {
+  const handleApprove = async (requestId) => {
     setSelectedRequest(requestId);
-    setAction("approve");
     setOpenDialog(true);
   };
 
-  const handleReject = (requestId) => {
+  const handleReject = async (requestId) => {
     setSelectedRequest(requestId);
-    setAction("reject");
     setOpenDialog(true);
   };
 
@@ -99,40 +89,25 @@ const FacultyODRequestList = () => {
     setOpenDialog(false);
     setComment("");
     setSelectedRequest(null);
-    setAction("");
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (action) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Authentication token not found. Please login again.");
-        return;
-      }
-
-      const endpoint =
-        action === "approve" ? "advisor-approve" : "advisor-reject";
-      const res = await axios.put(
-        `http://localhost:5000/api/od-requests/${selectedRequest}/${endpoint}`,
+      await axios.put(
+        `http://localhost:5000/api/od-requests/${selectedRequest}/hod-${action}`,
         { comment },
         {
           headers: {
-            "x-auth-token": token,
+            "x-auth-token": localStorage.getItem("token"),
           },
         }
       );
-
-      console.log("Request updated:", res.data);
-      setSuccess(`Request ${action}d successfully`);
+      setSuccess(`Request ${action}ed successfully`);
       handleDialogClose();
       fetchRequests();
     } catch (err) {
-      console.error("Error updating request:", err);
-      if (err.response) {
-        setError(err.response.data.message || `Error ${action}ing request`);
-      } else {
-        setError(`Error ${action}ing request. Please try again.`);
-      }
+      setError(`Error ${action}ing request`);
+      console.error("Error:", err);
     }
   };
 
@@ -153,29 +128,11 @@ const FacultyODRequestList = () => {
     );
   };
 
-  const handleProofVerification = async (requestId, verified) => {
-    try {
-      await axios.put(
-        `http://localhost:5000/api/od-requests/${requestId}/verify-proof`,
-        { verified },
-        {
-          headers: {
-            "x-auth-token": localStorage.getItem("token"),
-          },
-        }
-      );
-      setSuccess(`Proof ${verified ? "verified" : "rejected"} successfully`);
-      fetchRequests();
-    } catch (err) {
-      setError(err.response?.data?.msg || "Error verifying proof");
-    }
-  };
-
   return (
     <Container maxWidth="lg">
-      <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
+      <Box sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          Faculty Dashboard
+          HOD Dashboard
         </Typography>
 
         {error && (
@@ -189,7 +146,7 @@ const FacultyODRequestList = () => {
           </Alert>
         )}
 
-        <TableContainer>
+        <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
@@ -201,6 +158,8 @@ const FacultyODRequestList = () => {
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
                 <TableCell>Reason</TableCell>
+                <TableCell>Advisor Status</TableCell>
+                <TableCell>Advisor Comment</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
@@ -223,8 +182,10 @@ const FacultyODRequestList = () => {
                   </TableCell>
                   <TableCell>{request.reason}</TableCell>
                   <TableCell>{getStatusChip(request.status)}</TableCell>
+                  <TableCell>{request.advisorComment || "-"}</TableCell>
+                  <TableCell>{getStatusChip(request.status)}</TableCell>
                   <TableCell>
-                    {request.status === "pending" && (
+                    {request.status === "approved_by_advisor" && (
                       <>
                         <Button
                           variant="contained"
@@ -251,7 +212,7 @@ const FacultyODRequestList = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      </Paper>
+      </Box>
 
       <Dialog open={openDialog} onClose={handleDialogClose}>
         <DialogTitle>Add Comment</DialogTitle>
@@ -269,76 +230,16 @@ const FacultyODRequestList = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDialogClose}>Cancel</Button>
-          <Button
-            onClick={handleSubmit}
-            color={action === "approve" ? "success" : "error"}
-          >
-            {action === "approve" ? "Approve" : "Reject"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={selectedRequest !== null}
-        onClose={() => setSelectedRequest(null)}
-      >
-        <DialogTitle>Update Request Status</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Remarks"
-            type="text"
-            fullWidth
-            multiline
-            rows={4}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSelectedRequest(null)}>Cancel</Button>
-          <Button onClick={() => handleSubmit()} color="success">
+          <Button onClick={() => handleSubmit("approve")} color="success">
             Approve
           </Button>
-          <Button onClick={() => handleSubmit()} color="error">
+          <Button onClick={() => handleSubmit("reject")} color="error">
             Reject
           </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={viewProofDialogOpen}
-        onClose={() => setViewProofDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>View Proof Document</DialogTitle>
-        <DialogContent>
-          {selectedRequest?.proofDocument && (
-            <Box className="proof-document-container">
-              {selectedRequest.proofDocument.endsWith(".pdf") ? (
-                <iframe
-                  src={selectedRequest.proofDocument}
-                  style={{ width: "100%", height: "500px" }}
-                  title="Proof Document"
-                />
-              ) : (
-                <img
-                  src={selectedRequest.proofDocument}
-                  alt="Proof Document"
-                  style={{ maxWidth: "100%", height: "auto" }}
-                />
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setViewProofDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>
   );
 };
 
-export default FacultyODRequestList;
+export default HODDashboard;

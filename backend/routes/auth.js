@@ -62,7 +62,8 @@ router.post(
 router.post(
   "/register",
   asyncHandler(async (req, res) => {
-    const { name, email, password, role, department, year } = req.body;
+    const { name, email, password, role, department, year, facultyAdvisor } =
+      req.body;
 
     console.log("Register request body:", req.body);
 
@@ -78,9 +79,24 @@ router.post(
       throw new Error("Department is required for this role");
     }
 
-    if (role === "student" && !year) {
-      res.status(400);
-      throw new Error("Year is required for students");
+    if (role === "student") {
+      if (!year) {
+        res.status(400);
+        throw new Error("Year is required for students");
+      }
+      if (!facultyAdvisor) {
+        res.status(400);
+        throw new Error("Faculty advisor is required for students");
+      }
+      // Verify that the faculty advisor exists and is a faculty member
+      const advisor = await User.findOne({
+        _id: facultyAdvisor,
+        role: "faculty",
+      });
+      if (!advisor) {
+        res.status(400);
+        throw new Error("Invalid faculty advisor selected");
+      }
     }
 
     // Check if user already exists
@@ -90,48 +106,30 @@ router.post(
       throw new Error("User already exists");
     }
 
-    try {
-      user = new User({
-        name,
-        email,
-        password,
-        role,
-        department,
-        year,
-      });
+    // Create user
+    user = await User.create({
+      name,
+      email,
+      password,
+      role,
+      department,
+      year,
+      facultyAdvisor: role === "student" ? facultyAdvisor : undefined,
+    });
 
-      await user.save();
-      console.log("User saved successfully:", user._id);
-
-      const token = jwt.sign(
-        { id: user._id, role: user.role },
-        process.env.JWT_SECRET || "your_jwt_secret",
-        { expiresIn: "1h" }
-      );
-
+    if (user) {
       res.status(201).json({
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          department: user.department,
-          year: user.year,
-        },
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        year: user.year,
+        facultyAdvisor: user.facultyAdvisor,
       });
-    } catch (saveError) {
-      console.error("Error saving user:", saveError);
-      if (saveError.name === "ValidationError") {
-        const errors = Object.keys(saveError.errors).map(
-          (key) => saveError.errors[key].message
-        );
-        res.status(400);
-        throw new Error(`Validation Error: ${errors.join(", ")}`);
-      } else {
-        res.status(500);
-        throw new Error("Failed to register user: " + saveError.message);
-      }
+    } else {
+      res.status(400);
+      throw new Error("Invalid user data");
     }
   })
 );

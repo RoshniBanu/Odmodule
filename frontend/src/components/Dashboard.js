@@ -1,5 +1,5 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Paper,
@@ -12,8 +12,8 @@ import {
   Card,
   CardContent,
   CardActions,
-} from '@mui/material';
-import { useAuth } from '../contexts/AuthContext';
+} from "@mui/material";
+import { useAuth } from "../contexts/AuthContext";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   if (loading) {
@@ -45,7 +45,11 @@ const Dashboard = () => {
             </Typography>
           </CardContent>
           <CardActions>
-            <Button size="small" color="primary" onClick={() => navigate('/student/od-request')}>
+            <Button
+              size="small"
+              color="primary"
+              onClick={() => navigate("/student/od-request")}
+            >
               Create Request
             </Button>
           </CardActions>
@@ -62,7 +66,11 @@ const Dashboard = () => {
             </Typography>
           </CardContent>
           <CardActions>
-            <Button size="small" color="primary" onClick={() => navigate('/student/my-requests')}>
+            <Button
+              size="small"
+              color="primary"
+              onClick={() => navigate("/student/my-requests")}
+            >
               View Requests
             </Button>
           </CardActions>
@@ -84,7 +92,11 @@ const Dashboard = () => {
             </Typography>
           </CardContent>
           <CardActions>
-            <Button size="small" color="primary" onClick={() => navigate('/faculty/od-requests')}>
+            <Button
+              size="small"
+              color="primary"
+              onClick={() => navigate("/faculty/od-requests")}
+            >
               Manage Requests
             </Button>
           </CardActions>
@@ -99,15 +111,19 @@ const Dashboard = () => {
         <Card>
           <CardContent>
             <Typography variant="h5" component="div" gutterBottom>
-              Department Overview
+              OD Requests Dashboard
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              View department statistics and manage faculty.
+              View and manage OD requests from students in your department.
             </Typography>
           </CardContent>
           <CardActions>
-            <Button size="small" color="primary">
-              View Department
+            <Button
+              size="small"
+              color="primary"
+              onClick={() => navigate("/hod/dashboard")}
+            >
+              View Requests
             </Button>
           </CardActions>
         </Card>
@@ -139,13 +155,13 @@ const Dashboard = () => {
 
   const renderDashboardContent = () => {
     switch (user.role) {
-      case 'student':
+      case "student":
         return renderStudentDashboard();
-      case 'faculty':
+      case "faculty":
         return renderFacultyDashboard();
-      case 'hod':
+      case "hod":
         return renderHODDashboard();
-      case 'admin':
+      case "admin":
         return renderAdminDashboard();
       default:
         return null;
@@ -179,4 +195,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

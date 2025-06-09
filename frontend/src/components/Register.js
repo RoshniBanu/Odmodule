@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Paper,
@@ -11,38 +11,79 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
-} from '@mui/material';
-import { useAuth } from '../contexts/AuthContext';
+  MenuItem,
+} from "@mui/material";
+import { useAuth } from "../contexts/AuthContext";
+import axios from "axios";
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'student', // Default role
-    department: '',
-    year: ''
+    name: "",
+    email: "",
+    password: "",
+    role: "student", // Default role
+    department: "",
+    year: "",
+    facultyAdvisor: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [facultyAdvisors, setFacultyAdvisors] = useState([]);
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchFacultyAdvisors = async () => {
+      try {
+        console.log("Fetching faculty advisors...");
+        const res = await axios.get(
+          "http://localhost:5000/api/users/public/faculty"
+        );
+        console.log("Faculty advisors response:", res.data);
+
+        if (res.data && Array.isArray(res.data)) {
+          if (res.data.length === 0) {
+            setError(
+              "No faculty advisors found. Please contact the administrator."
+            );
+          } else {
+            setFacultyAdvisors(res.data);
+            setError(""); // Clear any previous errors
+          }
+        } else {
+          console.error("Invalid response format:", res.data);
+          setError("Invalid response format from server");
+        }
+      } catch (err) {
+        console.error("Error fetching faculty advisors:", err);
+        setError(
+          err.response?.data?.message ||
+            "Error fetching faculty advisors. Please try again later."
+        );
+      }
+    };
+
+    if (formData.role === "student") {
+      fetchFacultyAdvisors();
+    } else {
+      setFacultyAdvisors([]); // Clear advisors when not a student
+    }
+  }, [formData.role]);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     const result = await register(formData);
 
     if (result.success) {
-      navigate('/dashboard');
+      navigate("/dashboard");
     } else {
       setError(result.error);
     }
@@ -55,7 +96,11 @@ const Register = () => {
           Register
         </Typography>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
         <Box component="form" onSubmit={handleSubmit}>
           <TextField
@@ -101,7 +146,9 @@ const Register = () => {
               <MenuItem value="admin">Admin</MenuItem>
             </Select>
           </FormControl>
-          {(formData.role === 'student' || formData.role === 'faculty' || formData.role === 'hod') && (
+          {(formData.role === "student" ||
+            formData.role === "faculty" ||
+            formData.role === "hod") && (
             <>
               <TextField
                 fullWidth
@@ -114,16 +161,33 @@ const Register = () => {
               />
             </>
           )}
-          {formData.role === 'student' && (
-            <TextField
-              fullWidth
-              label="Year"
-              name="year"
-              value={formData.year}
-              onChange={handleChange}
-              margin="normal"
-              required
-            />
+          {formData.role === "student" && (
+            <>
+              <TextField
+                fullWidth
+                label="Year"
+                name="year"
+                value={formData.year}
+                onChange={handleChange}
+                margin="normal"
+                required
+              />
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Faculty Advisor</InputLabel>
+                <Select
+                  name="facultyAdvisor"
+                  value={formData.facultyAdvisor}
+                  onChange={handleChange}
+                  label="Faculty Advisor"
+                >
+                  {facultyAdvisors.map((advisor) => (
+                    <MenuItem key={advisor._id} value={advisor._id}>
+                      {advisor.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
           )}
           <Button
             type="submit"
@@ -141,4 +205,4 @@ const Register = () => {
   );
 };
 
-export default Register; 
+export default Register;
