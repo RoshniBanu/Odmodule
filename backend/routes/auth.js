@@ -62,7 +62,7 @@ router.post(
 router.post(
   "/register",
   asyncHandler(async (req, res) => {
-    const { name, email, password, role, department, year, facultyAdvisor } =
+    const { name, email, password, role, department, year, facultyAdvisor, registerNo } =
       req.body;
 
     console.log("Register request body:", req.body);
@@ -83,6 +83,16 @@ router.post(
       if (!year) {
         res.status(400);
         throw new Error("Year is required for students");
+      }
+      if (!registerNo) {
+        res.status(400);
+        throw new Error("Register Number is required for students");
+      }
+      // Check if register number already exists for student
+      const existingStudent = await User.findOne({ registerNo, role: "student" });
+      if (existingStudent) {
+        res.status(400);
+        throw new Error("Student with this Register Number already exists");
       }
       if (!facultyAdvisor) {
         res.status(400);
@@ -111,6 +121,7 @@ router.post(
       name,
       email,
       password,
+      registerNo: role === "student" ? registerNo : undefined,
       role,
       department,
       year,

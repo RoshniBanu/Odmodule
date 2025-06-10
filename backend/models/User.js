@@ -12,6 +12,13 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    registerNo: {
+      type: String,
+      required: function () {
+        return this.role === "student";
+      },
+      unique: true,
+    },
     password: {
       type: String,
       required: true,
