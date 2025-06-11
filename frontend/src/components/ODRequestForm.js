@@ -12,8 +12,12 @@ import {
   MenuItem,
   Grid,
   Alert,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import axios from "axios";
@@ -27,6 +31,9 @@ const ODRequestForm = () => {
     startDate: null,
     endDate: null,
     reason: "",
+    timeType: "fullDay",
+    startTime: null,
+    endTime: null,
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -45,6 +52,13 @@ const ODRequestForm = () => {
     });
   };
 
+  const handleTimeChange = (field) => (time) => {
+    setFormData({
+      ...formData,
+      [field]: time,
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -55,7 +69,7 @@ const ODRequestForm = () => {
         "http://localhost:5000/api/od-requests",
         {
           ...formData,
-          classAdvisor: user.facultyAdvisor, // Use the stored faculty advisor
+          classAdvisor: user.facultyAdvisor,
         },
         {
           headers: {
@@ -71,6 +85,9 @@ const ODRequestForm = () => {
         startDate: null,
         endDate: null,
         reason: "",
+        timeType: "fullDay",
+        startTime: null,
+        endTime: null,
       });
     } catch (err) {
       setError(err.response?.data?.message || "Error submitting OD request");
@@ -134,6 +151,56 @@ const ODRequestForm = () => {
                 slotProps={{ textField: { fullWidth: true, required: true } }}
               />
             </Grid>
+
+            <Grid item xs={12}>
+              <FormControl component="fieldset">
+                <Typography variant="subtitle1" gutterBottom>
+                  Time Selection
+                </Typography>
+                <RadioGroup
+                  row
+                  name="timeType"
+                  value={formData.timeType}
+                  onChange={handleChange}
+                >
+                  <FormControlLabel
+                    value="fullDay"
+                    control={<Radio />}
+                    label="Full Day"
+                  />
+                  <FormControlLabel
+                    value="particularHours"
+                    control={<Radio />}
+                    label="Particular Hours"
+                  />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
+
+            {formData.timeType === "particularHours" && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TimePicker
+                    label="From Time"
+                    value={formData.startTime}
+                    onChange={handleTimeChange("startTime")}
+                    slotProps={{
+                      textField: { fullWidth: true, required: true },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TimePicker
+                    label="To Time"
+                    value={formData.endTime}
+                    onChange={handleTimeChange("endTime")}
+                    slotProps={{
+                      textField: { fullWidth: true, required: true },
+                    }}
+                  />
+                </Grid>
+              </>
+            )}
 
             <Grid item xs={12}>
               <TextField

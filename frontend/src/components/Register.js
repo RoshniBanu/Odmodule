@@ -25,6 +25,7 @@ const Register = () => {
     department: "",
     year: "",
     facultyAdvisor: "",
+    registerNo: "", // Add register number field
   });
   const [error, setError] = useState("");
   const [facultyAdvisors, setFacultyAdvisors] = useState([]);
@@ -163,6 +164,15 @@ const Register = () => {
           )}
           {formData.role === "student" && (
             <>
+              <TextField
+                fullWidth
+                label="Register Number"
+                name="registerNo"
+                value={formData.registerNo}
+                onChange={handleChange}
+                margin="normal"
+                required
+              />
               <TextField
                 fullWidth
                 label="Year"

@@ -41,6 +41,23 @@ const odRequestSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    timeType: {
+      type: String,
+      enum: ["fullDay", "particularHours"],
+      default: "fullDay",
+    },
+    startTime: {
+      type: Date,
+      required: function () {
+        return this.timeType === "particularHours";
+      },
+    },
+    endTime: {
+      type: Date,
+      required: function () {
+        return this.timeType === "particularHours";
+      },
+    },
     reason: {
       type: String,
       required: true,
