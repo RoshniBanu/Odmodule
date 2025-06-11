@@ -158,7 +158,6 @@ const HODDashboard = () => {
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
                 <TableCell>Reason</TableCell>
-                <TableCell>Advisor Status</TableCell>
                 <TableCell>Advisor Comment</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
@@ -181,18 +180,16 @@ const HODDashboard = () => {
                     {new Date(request.endDate).toLocaleDateString()}
                   </TableCell>
                   <TableCell>{request.reason}</TableCell>
-                  <TableCell>{getStatusChip(request.status)}</TableCell>
                   <TableCell>{request.advisorComment || "-"}</TableCell>
                   <TableCell>{getStatusChip(request.status)}</TableCell>
                   <TableCell>
                     {request.status === "approved_by_advisor" && (
-                      <>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button
                           variant="contained"
                           color="success"
                           size="small"
                           onClick={() => handleApprove(request._id)}
-                          sx={{ mr: 1 }}
                         >
                           Approve
                         </Button>
@@ -204,7 +201,7 @@ const HODDashboard = () => {
                         >
                           Reject
                         </Button>
-                      </>
+                      </Box>
                     )}
                   </TableCell>
                 </TableRow>

@@ -19,6 +19,7 @@ import {
   Box,
   Chip,
 } from "@mui/material";
+import { Download as DownloadIcon } from "@mui/icons-material";
 import axios from "axios";
 
 const ODRequestList = () => {
@@ -79,6 +80,38 @@ const ODRequestList = () => {
     }
   };
 
+  const handleDownloadPDF = async (requestId) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/api/od-requests/${requestId}/download-approved-pdf`,
+        {
+          headers: {
+            "x-auth-token": localStorage.getItem("token"),
+          },
+          responseType: 'blob'
+        }
+      );
+
+      // Create a blob from the PDF data
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link element and trigger the download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `od_request_${requestId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError("Error downloading PDF");
+      console.error("Error downloading PDF:", err);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "approved":
@@ -119,7 +152,7 @@ const ODRequestList = () => {
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
                 <TableCell>Class Advisor</TableCell>
-                <TableCell>Approved by Class Advisor?</TableCell>
+                <TableCell>Status</TableCell>
                 <TableCell>Proof Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
@@ -141,7 +174,7 @@ const ODRequestList = () => {
                   <TableCell>
                     <Chip
                       label={request.status}
-                      className={`status-${request.status.toLowerCase()}`}
+                      color={getStatusColor(request.status)}
                       size="small"
                     />
                   </TableCell>
@@ -150,38 +183,48 @@ const ODRequestList = () => {
                       label={
                         request.proofSubmitted ? "Submitted" : "Not Submitted"
                       }
-                      className={`status-${
-                        request.proofSubmitted ? "submitted" : "pending"
-                      }`}
+                      color={request.proofSubmitted ? "success" : "warning"}
                       size="small"
                     />
                   </TableCell>
                   <TableCell>
-                    {request.status === "approved" &&
-                      !request.proofSubmitted && (
+                    {request.status === "approved_by_hod" && (
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                         <Button
                           variant="contained"
                           color="primary"
                           size="small"
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setProofDialogOpen(true);
-                          }}
+                          startIcon={<DownloadIcon />}
+                          onClick={() => handleDownloadPDF(request._id)}
                         >
-                          Submit Proof
+                          Download PDF
                         </Button>
-                      )}
-                    {request.proofSubmitted && (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setViewProofDialogOpen(true);
-                        }}
-                      >
-                        View Proof
-                      </Button>
+                        {!request.proofSubmitted && (
+                          <Button
+                            variant="contained"
+                            color="secondary"
+                            size="small"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setProofDialogOpen(true);
+                            }}
+                          >
+                            Submit Proof
+                          </Button>
+                        )}
+                        {request.proofSubmitted && (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setViewProofDialogOpen(true);
+                            }}
+                          >
+                            View Proof
+                          </Button>
+                        )}
+                      </Box>
                     )}
                   </TableCell>
                 </TableRow>

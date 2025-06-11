@@ -225,13 +225,12 @@ const FacultyODRequestList = () => {
                   <TableCell>{getStatusChip(request.status)}</TableCell>
                   <TableCell>
                     {request.status === "pending" && (
-                      <>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button
                           variant="contained"
                           color="success"
                           size="small"
                           onClick={() => handleApprove(request._id)}
-                          sx={{ mr: 1 }}
                         >
                           Approve
                         </Button>
@@ -243,7 +242,7 @@ const FacultyODRequestList = () => {
                         >
                           Reject
                         </Button>
-                      </>
+                      </Box>
                     )}
                   </TableCell>
                 </TableRow>

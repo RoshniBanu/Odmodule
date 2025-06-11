@@ -340,15 +340,14 @@ router.put(
     odRequest.remarks = remarks;
     odRequest.updatedAt = Date.now();
 
-    // If HOD approves, update the overall status as well
-    if (status === "approved") {
-      odRequest.status = "approved_by_hod";
-    }
+    // Update status regardless of the incoming status value
+    odRequest.status = "approved_by_hod";
 
     const updatedRequest = await odRequest.save();
 
     console.log("OD Request status updated by HOD:", updatedRequest);
 
+    // Generate PDF for approved requests
     if (updatedRequest.hodStatus === "approved") {
       const doc = new PDFDocument({ margin: 30 });
 
@@ -367,7 +366,7 @@ router.put(
         doc.moveTo(x + widths[0], y).lineTo(x + widths[0], y + height).stroke();
       
         doc.font(isHeader ? 'Helvetica-Bold' : 'Helvetica')
-           .fontSize(10)
+           .fontSize(9)
            .text(columns[0], x + 5, y + 8, { width: widths[0] - 10 });
       
         doc.text(columns[1], x + widths[0] + 5, y + 8, { width: widths[1] - 10 });
@@ -376,14 +375,14 @@ router.put(
       doc.rect(doc.page.margins.left - 5, doc.page.margins.top - 5, doc.page.width - doc.page.margins.left - doc.page.margins.right + 10, doc.page.height - doc.page.margins.top - doc.page.margins.bottom + 10).stroke();
       
       // Set initial font
-      doc.font('Helvetica').fontSize(10);
+      doc.font('Helvetica').fontSize(9);
       
       // Header
-      doc.fontSize(10).font('Helvetica-Bold').text('COLLEGE OF ENGINEERING GUINDY', { align: 'center' });
+      doc.fontSize(9).font('Helvetica-Bold').text('COLLEGE OF ENGINEERING GUINDY', { align: 'center' });
       doc.text('Chennai-600025', { align: 'center' });
       doc.moveDown(0.7);
       
-      doc.fontSize(14).font('Helvetica-Bold').text('ON DUTY APPROVAL FORM', { align: 'center' });
+      doc.fontSize(12).font('Helvetica-Bold').text('ON DUTY APPROVAL FORM', { align: 'center' });
       doc.moveDown(1.2);
       
       // Layout configuration
@@ -442,9 +441,7 @@ router.put(
       doc.font('Helvetica').text(`Name: ${updatedRequest.classAdvisor.name}`, textOptions);
       doc.moveDown(0.5);
       doc.text('', textOptions);
-      if (['approved_by_advisor', 'approved_by_hod'].includes(updatedRequest.status)) {
-        doc.font('Helvetica-Bold').text('VIRTUALLY APPROVED', textOptions);
-      }
+      doc.font('Helvetica-Bold').text('VIRTUALLY APPROVED', textOptions);
       const classEndY = doc.y;
       
       // HOD
@@ -453,9 +450,7 @@ router.put(
       doc.font('Helvetica').text(`Name: ${updatedRequest.hod.name}`, textOptions);
       doc.moveDown(0.5);
       doc.text('', textOptions);
-      if (updatedRequest.status === 'approved_by_hod') {
-        doc.font('Helvetica-Bold').text('VIRTUALLY APPROVED', textOptions);
-      }
+      doc.font('Helvetica-Bold').text('VIRTUALLY APPROVED', textOptions);
       const hodEndY = doc.y;
       
       // Student
@@ -472,9 +467,6 @@ router.put(
       
       doc.end();
       
- 
-      
-
       // Ensure the response is finalized only after the PDF stream ends
       doc.on('end', () => {
         res.end();
@@ -551,16 +543,16 @@ router.get(
     doc.rect(doc.page.margins.left - 5, doc.page.margins.top - 5, doc.page.width - doc.page.margins.left - doc.page.margins.right + 10, doc.page.height - doc.page.margins.top - doc.page.margins.bottom + 10).stroke();
 
     // Set initial font and size for general text
-    doc.font('Helvetica').fontSize(10);
+    doc.font('Helvetica').fontSize(9);
 
     // University Header
-    doc.fontSize(10).font('Helvetica-Bold').text('COLLEGE OF ENGINEERING GUINDY', { align: 'center' });
+    doc.fontSize(9).font('Helvetica-Bold').text('COLLEGE OF ENGINEERING GUINDY', { align: 'center' });
     doc.text('Chennai-600025', { align: 'center' });
     doc.moveDown(0.7); // Adjusted for slightly more space
 
     // ON DUTY title
-    doc.fontSize(14).font('Helvetica-Bold').text('ON DUTY APPROVAL FORM', { align: 'center' });
-    doc.moveDown(1.5); // More space after title
+    doc.fontSize(12).font('Helvetica-Bold').text('ON DUTY APPROVAL FORM', { align: 'center' });
+    doc.moveDown(1.2); // More space after title
 
     // STUDENT DETAILS Section as a Table
     // doc.fontSize(10).font('Helvetica-Bold').text('STUDENT DETAILS',{ align: 'center' }); // Removed: Merging with Purpose
@@ -791,6 +783,150 @@ router.put(
         error: error.message,
       });
     }
+  })
+);
+
+// Add new route for downloading PDF of approved requests
+// @desc    Download PDF for approved OD request
+// @route   GET /api/od-requests/:id/download-approved-pdf
+// @access  Private/Student
+router.get(
+  "/:id/download-approved-pdf",
+  protect,
+  student,
+  asyncHandler(async (req, res) => {
+    const odRequest = await ODRequest.findById(req.params.id)
+      .populate("student", "name registerNo department year")
+      .populate("classAdvisor", "name")
+      .populate("hod", "name");
+
+    if (!odRequest) {
+      res.status(404);
+      throw new Error("OD request not found");
+    }
+
+    // Check if the request is approved
+    if (odRequest.status !== "approved_by_hod") {
+      res.status(400);
+      throw new Error("Only approved requests can be downloaded");
+    }
+
+    // Check if the user is the student who created the request
+    if (odRequest.student._id.toString() !== req.user.id.toString()) {
+      res.status(401);
+      throw new Error("Not authorized to download this request");
+    }
+
+    const doc = new PDFDocument({ margin: 30 });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=od_request_${odRequest._id}.pdf`
+    );
+
+    doc.pipe(res);
+
+    // Page border
+    doc.rect(doc.page.margins.left - 5, doc.page.margins.top - 5, doc.page.width - doc.page.margins.left - doc.page.margins.right + 10, doc.page.height - doc.page.margins.top - doc.page.margins.bottom + 10).stroke();
+    
+    // Set initial font
+    doc.font('Helvetica').fontSize(9);
+    
+    // Header
+    doc.fontSize(9).font('Helvetica-Bold').text('COLLEGE OF ENGINEERING GUINDY', { align: 'center' });
+    doc.text('Chennai-600025', { align: 'center' });
+    doc.moveDown(0.7);
+    
+    doc.fontSize(12).font('Helvetica-Bold').text('ON DUTY APPROVAL FORM', { align: 'center' });
+    doc.moveDown(1.2);
+    
+    // Layout configuration
+    const startX = doc.page.margins.left;
+    const totalWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const labelWidth = totalWidth * 0.35;
+    const valueWidth = totalWidth * 0.65;
+    const cellWidths = [labelWidth, valueWidth];
+    let currentY = doc.y;
+    const rowHeight = 25;
+    let itemCounter = 1;
+    
+    // Helper function with borders
+    const drawLabeledRow = (label, value) => {
+      drawTableRowContent(doc, [`${itemCounter++}. ${label}`, value], cellWidths, startX, currentY, rowHeight, false, true);
+      currentY += rowHeight + 2; // Add spacing between rows
+    };
+    
+    // Student + Purpose Details
+    drawLabeledRow('Name:', odRequest.student.name);
+    drawLabeledRow('Register Number:', odRequest.student.registerNo || 'N/A');
+    drawLabeledRow('Department:', odRequest.student.department);
+    drawLabeledRow('Year:', odRequest.student.year);
+    drawLabeledRow('OD For What Purpose:', odRequest.reason);
+    
+    const daysRequired = Math.ceil((new Date(odRequest.endDate) - new Date(odRequest.startDate)) / (1000 * 60 * 60 * 24)) + 1;
+    drawLabeledRow('No. of OD Days required:', `${daysRequired} day(s) from ${new Date(odRequest.startDate).toLocaleDateString()} to ${new Date(odRequest.endDate).toLocaleDateString()}`);
+    
+    drawLabeledRow('Authority Sanctioning the OD:', `${odRequest.classAdvisor.name} (Class Advisor) and ${odRequest.hod.name} (HOD)`);
+    drawLabeledRow('Date of Sanction:', new Date().toLocaleDateString());
+    drawLabeledRow('No. of OD Full days/Half Days Availed:', 'One full day');
+    
+    doc.moveDown(2); // Space before signatures
+    
+    // Signature Section
+    const sigX = startX;
+    const sigWidth = totalWidth;
+    const colWidth = sigWidth / 3;
+    let sigY = doc.y;
+    const sigRowHeight = 20;
+    const sigContentHeight = 50;
+    
+    // Header row
+    drawTableRowContent(doc, ['CLASS ADVISOR', 'HOD', 'STUDENT'], 
+                        [colWidth, colWidth, colWidth],
+                        sigX, sigY, sigRowHeight, true);
+    sigY += sigRowHeight;
+    
+    // Signature Details
+    const sigDataY = sigY;
+    const textOptions = { width: colWidth, align: 'left' };
+    
+    // Class Advisor
+    doc.x = sigX;
+    doc.y = sigDataY;
+    doc.font('Helvetica').fontSize(9).text(`Name: ${odRequest.classAdvisor.name}`, textOptions);
+    doc.moveDown(0.5);
+    doc.text('', textOptions);
+    doc.font('Helvetica-Bold').fontSize(9).text('VIRTUALLY APPROVED', textOptions);
+    const classEndY = doc.y;
+    
+    // HOD
+    doc.x = sigX + colWidth;
+    doc.y = sigDataY;
+    doc.font('Helvetica').fontSize(9).text(`Name: ${odRequest.hod.name}`, textOptions);
+    doc.moveDown(0.5);
+    doc.text('', textOptions);
+    doc.font('Helvetica-Bold').fontSize(9).text('VIRTUALLY APPROVED', textOptions);
+    const hodEndY = doc.y;
+    
+    // Student
+    doc.x = sigX + colWidth * 2;
+    doc.y = sigDataY;
+    doc.font('Helvetica').fontSize(9).text(`Name: ${odRequest.student.name}`, textOptions);
+    doc.moveDown(0.5);
+    doc.text('Signature of the student', textOptions);
+    const studentEndY = doc.y;
+    
+    // Bottom Border
+    const maxY = Math.max(classEndY, hodEndY, studentEndY);
+    doc.moveTo(sigX, maxY).lineTo(sigX + sigWidth, maxY).stroke();
+    
+    doc.end();
+    
+    // Ensure the response is finalized only after the PDF stream ends
+    doc.on('end', () => {
+      res.end();
+    });
   })
 );
 
