@@ -37,6 +37,7 @@ const ODRequestForm = () => {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [brochureFile, setBrochureFile] = useState(null);
 
   const handleChange = (e) => {
     setFormData({
@@ -59,21 +60,49 @@ const ODRequestForm = () => {
     });
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type !== "application/pdf") {
+      setError("Only PDF files are allowed for the brochure.");
+      setBrochureFile(null);
+      return;
+    }
+    setError("");
+    setBrochureFile(file);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
+    if (!brochureFile) {
+      setError("Event brochure is required. Please upload a PDF brochure.");
+      return;
+    }
+
     try {
+      const form = new FormData();
+      form.append("eventName", formData.eventName);
+      form.append("eventDate", formData.eventDate);
+      form.append("startDate", formData.startDate);
+      form.append("endDate", formData.endDate);
+      form.append("reason", formData.reason);
+      form.append("timeType", formData.timeType);
+      if (formData.timeType === "particularHours") {
+        form.append("startTime", formData.startTime);
+        form.append("endTime", formData.endTime);
+      }
+      form.append("classAdvisor", user.facultyAdvisor);
+      form.append("brochure", brochureFile);
+
       const response = await axios.post(
         "http://localhost:5000/api/od-requests",
-        {
-          ...formData,
-          classAdvisor: user.facultyAdvisor,
-        },
+        form,
         {
           headers: {
             "x-auth-token": localStorage.getItem("token"),
+            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -89,6 +118,7 @@ const ODRequestForm = () => {
         startTime: null,
         endTime: null,
       });
+      setBrochureFile(null);
     } catch (err) {
       setError(err.response?.data?.message || "Error submitting OD request");
     }
@@ -213,6 +243,28 @@ const ODRequestForm = () => {
                 rows={4}
                 required
               />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Button
+                variant="outlined"
+                component="label"
+                fullWidth
+                sx={{ mb: 2 }}
+              >
+                Upload Event Brochure (PDF)
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  hidden
+                  onChange={handleFileChange}
+                />
+              </Button>
+              {brochureFile && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Selected file: {brochureFile.name}
+                </Typography>
+              )}
             </Grid>
 
             <Grid item xs={12}>

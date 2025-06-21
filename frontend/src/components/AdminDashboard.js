@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from "react";
+
 import {
   Box,
   Typography,
@@ -22,22 +23,26 @@ import {
   MenuItem,
   IconButton,
   Tooltip,
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
-import axios from 'axios';
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import axios from "axios";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 const AdminDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [manageSystemOpen, setManageSystemOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchField, setSearchField] = useState('reason');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchField, setSearchField] = useState("reason");
   const [systemSettings, setSystemSettings] = useState({
     responseTimeout: 30,
     autoForwardEnabled: true,
     notificationEnabled: true,
   });
+
+  const debounceTimeout = useRef();
 
   const getProofVerificationChip = (proofSubmitted, proofVerified) => {
     if (!proofSubmitted) {
@@ -51,11 +56,12 @@ const AdminDashboard = () => {
 
   const fetchRequests = async (params = {}) => {
     try {
-      let url = '/api/od-requests/admin';
+      let url = "/api/od-requests/admin";
       const query = [];
-      if (params.rollNumber) query.push(`rollNumber=${encodeURIComponent(params.rollNumber)}`);
+      if (params.rollNumber)
+        query.push(`rollNumber=${encodeURIComponent(params.rollNumber)}`);
       if (params.year) query.push(`year=${encodeURIComponent(params.year)}`);
-      if (query.length > 0) url += `?${query.join('&')}`;
+      if (query.length > 0) url += `?${query.join("&")}`;
       const { data } = await axios.get(url);
       setRequests(data);
       setLoading(false);
@@ -67,10 +73,10 @@ const AdminDashboard = () => {
 
   const fetchSystemSettings = async () => {
     try {
-      const { data } = await axios.get('/api/admin/system-settings');
+      const { data } = await axios.get("/api/admin/system-settings");
       setSystemSettings(data);
     } catch (err) {
-      console.error('Error fetching system settings:', err);
+      console.error("Error fetching system settings:", err);
     }
   };
 
@@ -100,12 +106,26 @@ const AdminDashboard = () => {
   };
 
   const handleSearch = (event) => {
-    setSearchQuery(event.target.value);
-    // For rollNumber or year, trigger backend search
-    if (searchField === 'rollNumber') {
-      fetchRequests({ rollNumber: event.target.value });
-    } else if (searchField === 'year') {
-      fetchRequests({ year: event.target.value });
+    const value = event.target.value;
+    setSearchQuery(value);
+
+    if (searchField === "rollNumber" || searchField === "year") {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+      debounceTimeout.current = setTimeout(() => {
+        if (searchField === "rollNumber") {
+          if (value.trim() === "") {
+            fetchRequests();
+          } else {
+            fetchRequests({ rollNumber: value });
+          }
+        } else if (searchField === "year") {
+          if (value.trim() === "") {
+            fetchRequests();
+          } else {
+            fetchRequests({ year: value });
+          }
+        }
+      }, 400);
     }
   };
 
@@ -115,7 +135,7 @@ const AdminDashboard = () => {
 
   const handleSaveSettings = async () => {
     try {
-      await axios.put('/api/admin/system-settings', systemSettings);
+      await axios.put("/api/admin/system-settings", systemSettings);
       setManageSystemOpen(false);
       // Show success message
       setError(null);
@@ -126,39 +146,40 @@ const AdminDashboard = () => {
     }
   };
 
-  const filteredRequests = searchField === 'rollNumber' || searchField === 'year'
-    ? requests // Already filtered by backend
-    : requests.filter(request => {
-        if (!searchQuery) return true;
-        const searchValue = searchQuery.toLowerCase();
-        switch (searchField) {
-          case 'reason':
-            return request.reason.toLowerCase().includes(searchValue);
-          case 'student':
-            return request.student?.name.toLowerCase().includes(searchValue);
-          case 'department':
-            return request.department.toLowerCase().includes(searchValue);
-          case 'event':
-            return request.eventName.toLowerCase().includes(searchValue);
-          default:
-            return true;
-        }
-      });
+  const filteredRequests =
+    searchField === "rollNumber" || searchField === "year"
+      ? requests // Already filtered by backend
+      : requests.filter((request) => {
+          if (!searchQuery) return true;
+          const searchValue = searchQuery.toLowerCase();
+          switch (searchField) {
+            case "reason":
+              return request.reason.toLowerCase().includes(searchValue);
+            case "student":
+              return request.student?.name.toLowerCase().includes(searchValue);
+            case "department":
+              return request.department.toLowerCase().includes(searchValue);
+            case "event":
+              return request.eventName.toLowerCase().includes(searchValue);
+            default:
+              return true;
+          }
+        });
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'approved_by_advisor':
-        return 'success';
-      case 'approved_by_hod':
-        return 'success';
-      case 'rejected':
-        return 'error';
-      case 'forwarded_to_admin':
-        return 'warning';
-      case 'forwarded_to_hod':
-        return 'info';
+      case "approved_by_advisor":
+        return "success";
+      case "approved_by_hod":
+        return "success";
+      case "rejected":
+        return "error";
+      case "forwarded_to_admin":
+        return "warning";
+      case "forwarded_to_hod":
+        return "info";
       default:
-        return 'default';
+        return "default";
     }
   };
 
@@ -173,15 +194,66 @@ const AdminDashboard = () => {
     if (days > 0) return `${days}d ago`;
     if (hours > 0) return `${hours}h ago`;
     if (minutes > 0) return `${minutes}m ago`;
-    return 'Just now';
+    return "Just now";
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("COLLEGE OF ENGINEERING GUINDY", 105, 18, { align: "center" });
+    doc.setFontSize(14);
+    doc.text("OD Requests Report", 105, 28, { align: "center" });
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 38);
+    doc.autoTable({
+      startY: 45,
+      head: [
+        [
+          "Student Name",
+          "Register No",
+          "Department",
+          "Event",
+          "Date",
+          "Reason",
+          "Faculty Advisor",
+          "Status",
+          "Proof Verification",
+        ],
+      ],
+      body: filteredRequests.map((request) => [
+        request.student?.name || "N/A",
+        request.student?.registerNo || "N/A",
+        request.department || "N/A",
+        request.eventName || "N/A",
+        request.eventDate
+          ? new Date(request.eventDate).toLocaleDateString()
+          : "N/A",
+        request.reason || "N/A",
+        request.classAdvisor?.name || "N/A",
+        request.status?.replace(/_/g, " ") || "N/A",
+        request.proofSubmitted
+          ? request.proofVerified
+            ? "VERIFIED"
+            : "PENDING"
+          : "NOT SUBMITTED",
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [22, 160, 133] },
+      margin: { left: 14, right: 14 },
+      theme: "grid",
+    });
+    doc.save("OD_Requests_Report.pdf");
   };
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">
-          Admin Dashboard
-        </Typography>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
+        <Typography variant="h4">Admin Dashboard</Typography>
         <Button
           variant="contained"
           color="primary"
@@ -192,7 +264,7 @@ const AdminDashboard = () => {
       </Box>
 
       <Grid container spacing={2} mb={3}>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={5}>
           <TextField
             fullWidth
             variant="outlined"
@@ -200,11 +272,13 @@ const AdminDashboard = () => {
             value={searchQuery}
             onChange={handleSearch}
             InputProps={{
-              startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+              startAdornment: (
+                <SearchIcon sx={{ mr: 1, color: "text.secondary" }} />
+              ),
             }}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={5}>
           <TextField
             select
             fullWidth
@@ -219,6 +293,24 @@ const AdminDashboard = () => {
             <MenuItem value="rollNumber">Search by Roll Number</MenuItem>
             <MenuItem value="year">Search by Year</MenuItem>
           </TextField>
+        </Grid>
+        <Grid
+          item
+          xs={12}
+          md={2}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Button
+            variant="contained"
+            color="secondary"
+            fullWidth
+            onClick={generatePDF}
+            sx={{ height: "100%" }}
+          >
+            Download PDF
+          </Button>
         </Grid>
       </Grid>
 
@@ -251,12 +343,14 @@ const AdminDashboard = () => {
             <TableBody>
               {filteredRequests.map((request) => (
                 <TableRow key={request._id}>
-                  <TableCell>{request.student?.name || 'N/A'}</TableCell>
-                  <TableCell>{request.student?.registerNo || 'N/A'}</TableCell>
-                  <TableCell>{request.department || 'N/A'}</TableCell>
-                  <TableCell>{request.eventName || 'N/A'}</TableCell>
+                  <TableCell>{request.student?.name || "N/A"}</TableCell>
+                  <TableCell>{request.student?.registerNo || "N/A"}</TableCell>
+                  <TableCell>{request.department || "N/A"}</TableCell>
+                  <TableCell>{request.eventName || "N/A"}</TableCell>
                   <TableCell>
-                    {request.eventDate ? new Date(request.eventDate).toLocaleDateString() : 'N/A'}
+                    {request.eventDate
+                      ? new Date(request.eventDate).toLocaleDateString()
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
                     <Tooltip title={request.reason}>
@@ -265,21 +359,26 @@ const AdminDashboard = () => {
                       </Typography>
                     </Tooltip>
                   </TableCell>
-                  <TableCell>{request.classAdvisor?.name || 'N/A'}</TableCell>
+                  <TableCell>{request.classAdvisor?.name || "N/A"}</TableCell>
                   <TableCell>
                     <Chip
-                      label={request.status?.replace(/_/g, ' ')}
+                      label={request.status?.replace(/_/g, " ")}
                       color={getStatusColor(request.status)}
                     />
                   </TableCell>
                   <TableCell>
-                    {getProofVerificationChip(request.proofSubmitted, request.proofVerified)}
+                    {getProofVerificationChip(
+                      request.proofSubmitted,
+                      request.proofVerified
+                    )}
                   </TableCell>
                   <TableCell>
-                    {request.lastStatusChangeAt ? getTimeElapsed(request.lastStatusChangeAt) : 'N/A'}
+                    {request.lastStatusChangeAt
+                      ? getTimeElapsed(request.lastStatusChangeAt)
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
-                    {request.status === 'forwarded_to_admin' && (
+                    {request.status === "forwarded_to_admin" && (
                       <Button
                         variant="contained"
                         color="primary"
@@ -307,10 +406,12 @@ const AdminDashboard = () => {
                 label="Response Timeout (seconds)"
                 type="number"
                 value={systemSettings.responseTimeout}
-                onChange={(e) => setSystemSettings({
-                  ...systemSettings,
-                  responseTimeout: parseInt(e.target.value)
-                })}
+                onChange={(e) =>
+                  setSystemSettings({
+                    ...systemSettings,
+                    responseTimeout: parseInt(e.target.value),
+                  })
+                }
                 inputProps={{ min: 10, max: 300 }}
               />
             </Grid>
@@ -320,10 +421,12 @@ const AdminDashboard = () => {
                 fullWidth
                 label="Auto Forward"
                 value={systemSettings.autoForwardEnabled}
-                onChange={(e) => setSystemSettings({
-                  ...systemSettings,
-                  autoForwardEnabled: e.target.value === 'true'
-                })}
+                onChange={(e) =>
+                  setSystemSettings({
+                    ...systemSettings,
+                    autoForwardEnabled: e.target.value === "true",
+                  })
+                }
               >
                 <MenuItem value={true}>Enabled</MenuItem>
                 <MenuItem value={false}>Disabled</MenuItem>
@@ -335,10 +438,12 @@ const AdminDashboard = () => {
                 fullWidth
                 label="Notifications"
                 value={systemSettings.notificationEnabled}
-                onChange={(e) => setSystemSettings({
-                  ...systemSettings,
-                  notificationEnabled: e.target.value === 'true'
-                })}
+                onChange={(e) =>
+                  setSystemSettings({
+                    ...systemSettings,
+                    notificationEnabled: e.target.value === "true",
+                  })
+                }
               >
                 <MenuItem value={true}>Enabled</MenuItem>
                 <MenuItem value={false}>Disabled</MenuItem>
@@ -348,7 +453,11 @@ const AdminDashboard = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseManageSystem}>Cancel</Button>
-          <Button onClick={handleSaveSettings} variant="contained" color="primary">
+          <Button
+            onClick={handleSaveSettings}
+            variant="contained"
+            color="primary"
+          >
             Save Changes
           </Button>
         </DialogActions>
@@ -357,4 +466,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard; 
+export default AdminDashboard;

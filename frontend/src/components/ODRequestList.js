@@ -53,7 +53,7 @@ const ODRequestList = () => {
   const fetchRequests = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/od-requests/student",
+        "http://localhost:5000/api/od-requests/my-requests",
         {
           headers: {
             "x-auth-token": localStorage.getItem("token"),
@@ -68,14 +68,17 @@ const ODRequestList = () => {
 
   const fetchFacultyList = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/users/faculty', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+      const response = await axios.get(
+        "http://localhost:5000/api/users/faculty",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
-      });
+      );
       setFacultyList(response.data);
     } catch (error) {
-      console.error('Error fetching faculty list:', error);
+      console.error("Error fetching faculty list:", error);
     }
   };
 
@@ -87,7 +90,10 @@ const ODRequestList = () => {
 
     const formData = new FormData();
     formData.append("proofDocument", proofFile);
-    formData.append("notifyFaculty", JSON.stringify(selectedFaculty.map(f => f._id)));
+    formData.append(
+      "notifyFaculty",
+      JSON.stringify(selectedFaculty.map((f) => f._id))
+    );
 
     try {
       const response = await axios.put(
@@ -95,20 +101,22 @@ const ODRequestList = () => {
         formData,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'multipart/form-data'
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
 
-      setRequests(requests.map(req => 
-        req._id === response.data._id ? response.data : req
-      ));
+      setRequests(
+        requests.map((req) =>
+          req._id === response.data._id ? response.data : req
+        )
+      );
       setProofDialogOpen(false);
       setProofFile(null);
       setSelectedFaculty([]);
     } catch (error) {
-      console.error('Error submitting proof:', error);
+      console.error("Error submitting proof:", error);
     }
   };
 
@@ -120,21 +128,21 @@ const ODRequestList = () => {
           headers: {
             "x-auth-token": localStorage.getItem("token"),
           },
-          responseType: 'blob'
+          responseType: "blob",
         }
       );
 
       // Create a blob from the PDF data
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      
+
       // Create a temporary link element and trigger the download
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', `od_request_${requestId}.pdf`);
+      link.setAttribute("download", `od_request_${requestId}.pdf`);
       document.body.appendChild(link);
       link.click();
-      
+
       // Clean up
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
@@ -160,8 +168,11 @@ const ODRequestList = () => {
   const handleSubmitProof = async (e) => {
     e.preventDefault();
     const formData = new FormData();
-    formData.append('proofDocument', selectedFile);
-    formData.append('notifyFaculty', JSON.stringify(selectedFaculty.map(f => f._id)));
+    formData.append("proofDocument", selectedFile);
+    formData.append(
+      "notifyFaculty",
+      JSON.stringify(selectedFaculty.map((f) => f._id))
+    );
 
     try {
       await axios.post(
@@ -169,16 +180,16 @@ const ODRequestList = () => {
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
-      setSuccess('Proof submitted successfully');
+      setSuccess("Proof submitted successfully");
       handleCloseProofDialog();
       fetchRequests();
     } catch (error) {
-      setError(error.response?.data?.message || 'Error submitting proof');
+      setError(error.response?.data?.message || "Error submitting proof");
     }
   };
 
@@ -258,23 +269,28 @@ const ODRequestList = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    {getProofVerificationChip(request.proofSubmitted, request.proofVerified)}
+                    {getProofVerificationChip(
+                      request.proofSubmitted,
+                      request.proofVerified
+                    )}
                   </TableCell>
                   <TableCell>
-                    {request.status === "approved_by_hod" && !request.proofSubmitted && (
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setProofDialogOpen(true);
-                        }}
-                      >
-                        Submit Proof
-                      </Button>
-                    )}
-                    {(request.status === "approved_by_hod" || request.status === "rejected") && (
+                    {request.status === "approved_by_hod" &&
+                      !request.proofSubmitted && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setProofDialogOpen(true);
+                          }}
+                        >
+                          Submit Proof
+                        </Button>
+                      )}
+                    {(request.status === "approved_by_hod" ||
+                      request.status === "rejected") && (
                       <Button
                         variant="contained"
                         color="secondary"
@@ -315,12 +331,14 @@ const ODRequestList = () => {
                 type="file"
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                 onChange={handleFileChange}
-                style={{ marginBottom: '1rem' }}
+                style={{ marginBottom: "1rem" }}
               />
               <Autocomplete
                 multiple
                 options={facultyList}
-                getOptionLabel={(option) => `${option.name} (${option.department})`}
+                getOptionLabel={(option) =>
+                  `${option.name} (${option.department})`
+                }
                 value={selectedFaculty}
                 onChange={(event, newValue) => {
                   setSelectedFaculty(newValue);
@@ -338,7 +356,11 @@ const ODRequestList = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseProofDialog}>Cancel</Button>
-            <Button onClick={handleSubmitProof} variant="contained" color="primary">
+            <Button
+              onClick={handleSubmitProof}
+              variant="contained"
+              color="primary"
+            >
               Submit
             </Button>
           </DialogActions>
@@ -353,25 +375,29 @@ const ODRequestList = () => {
           <DialogTitle>View Proof Document</DialogTitle>
           <DialogContent>
             {selectedRequest?.proofDocument && (
-              <Box sx={{ 
-                width: '100%', 
-                height: '80vh', 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center',
-                bgcolor: '#f5f5f5',
-                borderRadius: 1,
-                p: 2
-              }}>
-                {selectedRequest.proofDocument.toLowerCase().endsWith('.pdf') ? (
+              <Box
+                sx={{
+                  width: "100%",
+                  height: "80vh",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  bgcolor: "#f5f5f5",
+                  borderRadius: 1,
+                  p: 2,
+                }}
+              >
+                {selectedRequest.proofDocument
+                  .toLowerCase()
+                  .endsWith(".pdf") ? (
                   <iframe
                     src={`http://localhost:5000/${selectedRequest.proofDocument}`}
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      border: 'none',
-                      borderRadius: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                      borderRadius: "4px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                     }}
                     title="Proof Document"
                   />
@@ -380,11 +406,11 @@ const ODRequestList = () => {
                     src={`http://localhost:5000/${selectedRequest.proofDocument}`}
                     alt="Proof Document"
                     style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain',
-                      borderRadius: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                      borderRadius: "4px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                     }}
                   />
                 )}

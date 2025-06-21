@@ -110,11 +110,10 @@ const FacultyODRequestList = () => {
         return;
       }
 
-      const endpoint =
-        action === "approve" ? "advisor-approve" : "advisor-reject";
+      const status = action === "approve" ? "approved_by_advisor" : "rejected";
       const res = await axios.put(
-        `http://localhost:5000/api/od-requests/${selectedRequest}/${endpoint}`,
-        { comment },
+        `http://localhost:5000/api/od-requests/${selectedRequest}/status`,
+        { status, comment },
         {
           headers: {
             "x-auth-token": token,
@@ -245,12 +244,16 @@ const FacultyODRequestList = () => {
                     {request.proofSubmitted ? (
                       getProofVerificationChip(request.proofVerified)
                     ) : (
-                      <Chip label="NOT SUBMITTED" color="default" size="small" />
+                      <Chip
+                        label="NOT SUBMITTED"
+                        color="default"
+                        size="small"
+                      />
                     )}
                   </TableCell>
                   <TableCell>
                     {request.status === "pending" && (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Box sx={{ display: "flex", gap: 1 }}>
                         <Button
                           variant="contained"
                           color="success"
@@ -270,14 +273,16 @@ const FacultyODRequestList = () => {
                       </Box>
                     )}
                     {request.proofSubmitted && (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Box sx={{ display: "flex", gap: 1 }}>
                         {!request.proofVerified && (
                           <>
                             <Button
                               variant="contained"
                               color="success"
                               size="small"
-                              onClick={() => handleProofVerification(request._id, true)}
+                              onClick={() =>
+                                handleProofVerification(request._id, true)
+                              }
                             >
                               Verify Proof
                             </Button>
@@ -285,7 +290,9 @@ const FacultyODRequestList = () => {
                               variant="contained"
                               color="error"
                               size="small"
-                              onClick={() => handleProofVerification(request._id, false)}
+                              onClick={() =>
+                                handleProofVerification(request._id, false)
+                              }
                             >
                               Reject Proof
                             </Button>
@@ -333,9 +340,7 @@ const FacultyODRequestList = () => {
         </DialogActions>
       </Dialog>
 
-      <>
-        {/* This dialog was causing issues and has been removed */}
-      </>
+      <>{/* This dialog was causing issues and has been removed */}</>
 
       <Dialog
         open={viewProofDialogOpen}
@@ -346,25 +351,27 @@ const FacultyODRequestList = () => {
         <DialogTitle>View Proof Document</DialogTitle>
         <DialogContent>
           {selectedRequest?.proofDocument && (
-            <Box sx={{ 
-              width: '100%', 
-              height: '80vh', 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              bgcolor: '#f5f5f5',
-              borderRadius: 1,
-              p: 2
-            }}>
-              {selectedRequest.proofDocument.toLowerCase().endsWith('.pdf') ? (
+            <Box
+              sx={{
+                width: "100%",
+                height: "80vh",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                bgcolor: "#f5f5f5",
+                borderRadius: 1,
+                p: 2,
+              }}
+            >
+              {selectedRequest.proofDocument.toLowerCase().endsWith(".pdf") ? (
                 <iframe
                   src={`http://localhost:5000/${selectedRequest.proofDocument}`}
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    borderRadius: "4px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                   }}
                   title="Proof Document"
                 />
@@ -373,11 +380,11 @@ const FacultyODRequestList = () => {
                   src={`http://localhost:5000/${selectedRequest.proofDocument}`}
                   alt="Proof Document"
                   style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                    borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    objectFit: "contain",
+                    borderRadius: "4px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                   }}
                 />
               )}

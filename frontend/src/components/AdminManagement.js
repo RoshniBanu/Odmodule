@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from "react";
+
 import {
   Box,
   Typography,
@@ -18,44 +19,53 @@ import {
   Grid,
   Tooltip,
   MenuItem,
-} from '@mui/material';
-import { Search as SearchIcon } from '@mui/icons-material';
-import { Pie } from 'react-chartjs-2';
+} from "@mui/material";
+import { Search as SearchIcon } from "@mui/icons-material";
+import { Pie } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   ArcElement,
   Tooltip as ChartTooltip,
   Legend,
-  Title
-} from 'chart.js';
-import axios from 'axios';
+  Title,
+} from "chart.js";
+import axios from "axios";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Register ChartJS components
 ChartJS.register(ArcElement, ChartTooltip, Legend, Title);
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = "http://localhost:5000";
 
 const AdminManagement = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchField, setSearchField] = useState('reason');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchField, setSearchField] = useState("reason");
   const [studentStats, setStudentStats] = useState([]);
   const [statsLoading, setStatsLoading] = useState(true);
 
+  const debounceTimeout = useRef();
+
   const fetchStudentStats = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/od-requests/admin/student-stats`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+      const response = await axios.get(
+        `${API_BASE_URL}/api/od-requests/admin/student-stats`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
-      });
+      );
       setStudentStats(response.data);
       setStatsLoading(false);
     } catch (err) {
-      console.error('Error fetching student stats:', err);
-      setError(err.response?.data?.message || 'Failed to fetch student statistics');
+      console.error("Error fetching student stats:", err);
+      setError(
+        err.response?.data?.message || "Failed to fetch student statistics"
+      );
       setStatsLoading(false);
     }
   };
@@ -65,18 +75,19 @@ const AdminManagement = () => {
     try {
       let url = `${API_BASE_URL}/api/od-requests/admin/all`;
       const query = [];
-      if (params.rollNumber) query.push(`rollNumber=${encodeURIComponent(params.rollNumber)}`);
+      if (params.rollNumber)
+        query.push(`rollNumber=${encodeURIComponent(params.rollNumber)}`);
       if (params.year) query.push(`year=${encodeURIComponent(params.year)}`);
-      if (query.length > 0) url += `?${query.join('&')}`;
+      if (query.length > 0) url += `?${query.join("&")}`;
       const response = await axios.get(url, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
       });
       setRequests(response.data);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch requests');
+      setError(err.response?.data?.message || "Failed to fetch requests");
     }
     setLoading(false);
   };
@@ -87,12 +98,26 @@ const AdminManagement = () => {
   }, []);
 
   const handleSearch = (event) => {
-    setSearchQuery(event.target.value);
-    // For rollNumber or year, trigger backend search
-    if (searchField === 'rollNumber') {
-      fetchAllRequests({ rollNumber: event.target.value });
-    } else if (searchField === 'year') {
-      fetchAllRequests({ year: event.target.value });
+    const value = event.target.value;
+    setSearchQuery(value);
+
+    if (searchField === "rollNumber" || searchField === "year") {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+      debounceTimeout.current = setTimeout(() => {
+        if (searchField === "rollNumber") {
+          if (value.trim() === "") {
+            fetchAllRequests();
+          } else {
+            fetchAllRequests({ rollNumber: value });
+          }
+        } else if (searchField === "year") {
+          if (value.trim() === "") {
+            fetchAllRequests();
+          } else {
+            fetchAllRequests({ year: value });
+          }
+        }
+      }, 400);
     }
   };
 
@@ -100,40 +125,47 @@ const AdminManagement = () => {
     setSearchField(event.target.value);
   };
 
-  const filteredRequests = searchField === 'rollNumber' || searchField === 'year'
-    ? requests // Already filtered by backend
-    : requests.filter(request => {
-        if (!searchQuery) return true;
-        const searchValue = searchQuery.toLowerCase();
-        switch (searchField) {
-          case 'reason':
-            return request.reason?.toLowerCase().includes(searchValue);
-          case 'student':
-            return request.student?.name?.toLowerCase().includes(searchValue);
-          case 'department':
-            return request.department?.toLowerCase().includes(searchValue);
-          case 'event':
-            return request.eventName?.toLowerCase().includes(searchValue);
-          default:
-            return true;
-        }
-      });
+  const filteredRequests =
+    searchField === "rollNumber" || searchField === "year"
+      ? requests // Already filtered by backend
+      : requests.filter((request) => {
+          if (!searchQuery) return true;
+          const searchValue = searchQuery.toLowerCase();
+          switch (searchField) {
+            case "reason":
+              return request.reason?.toLowerCase().includes(searchValue);
+            case "student":
+              return request.student?.name?.toLowerCase().includes(searchValue);
+            case "department":
+              return request.department?.toLowerCase().includes(searchValue);
+            case "event":
+              return request.eventName?.toLowerCase().includes(searchValue);
+            default:
+              return true;
+          }
+        });
 
   const handleForwardToHod = async (requestId) => {
     try {
-      await axios.put(`${API_BASE_URL}/api/od-requests/${requestId}/forward-to-hod`, {}, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+      await axios.put(
+        `${API_BASE_URL}/api/od-requests/${requestId}/forward-to-hod`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
-      });
+      );
       fetchAllRequests();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to forward request to HOD');
+      setError(
+        err.response?.data?.message || "Failed to forward request to HOD"
+      );
     }
   };
 
   const getTimeElapsed = (timestamp) => {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return "N/A";
     const now = new Date();
     const then = new Date(timestamp);
     const diff = now - then;
@@ -144,38 +176,38 @@ const AdminManagement = () => {
     if (days > 0) return `${days}d ago`;
     if (hours > 0) return `${hours}h ago`;
     if (minutes > 0) return `${minutes}m ago`;
-    return 'Just now';
+    return "Just now";
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'approved_by_advisor':
-        return 'success';
-      case 'approved_by_hod':
-        return 'success';
-      case 'rejected':
-        return 'error';
-      case 'forwarded_to_admin':
-        return 'warning';
-      case 'forwarded_to_hod':
-        return 'info';
+      case "approved_by_advisor":
+        return "success";
+      case "approved_by_hod":
+        return "success";
+      case "rejected":
+        return "error";
+      case "forwarded_to_admin":
+        return "warning";
+      case "forwarded_to_hod":
+        return "info";
       default:
-        return 'default';
+        return "default";
     }
   };
 
   const chartData = {
-    labels: studentStats.map(stat => `Year ${stat.year}`),
+    labels: studentStats.map((stat) => `Year ${stat.year}`),
     datasets: [
       {
-        data: studentStats.map(stat => stat.count),
+        data: studentStats.map((stat) => stat.count),
         backgroundColor: [
-          '#FF6384',
-          '#36A2EB',
-          '#FFCE56',
-          '#4BC0C0',
-          '#9966FF',
-          '#FF9F40'
+          "#FF6384",
+          "#36A2EB",
+          "#FFCE56",
+          "#4BC0C0",
+          "#9966FF",
+          "#FF9F40",
         ],
         borderWidth: 1,
       },
@@ -187,21 +219,68 @@ const AdminManagement = () => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'bottom',
+        position: "bottom",
       },
       title: {
         display: true,
-        text: 'Student Distribution by Year',
+        text: "Student Distribution by Year",
         font: {
-          size: 16
-        }
-      }
-    }
+          size: 16,
+        },
+      },
+    },
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("COLLEGE OF ENGINEERING GUINDY", 105, 18, { align: "center" });
+    doc.setFontSize(14);
+    doc.text("OD Requests Report", 105, 28, { align: "center" });
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 38);
+    autoTable(doc, {
+      startY: 45,
+      head: [
+        [
+          "Student Name",
+          "Register No",
+          "Department",
+          "Event",
+          "Date",
+          "Reason",
+          "Faculty Advisor",
+          "Status",
+        ],
+      ],
+      body: filteredRequests.map((request) => [
+        request.student?.name || "N/A",
+        request.student?.registerNo || "N/A",
+        request.department || "N/A",
+        request.eventName || "N/A",
+        request.eventDate
+          ? new Date(request.eventDate).toLocaleDateString()
+          : "N/A",
+        request.reason || "N/A",
+        request.classAdvisor?.name || "N/A",
+        request.status?.replace(/_/g, " ") || "N/A",
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [22, 160, 133] },
+      margin: { left: 14, right: 14 },
+      theme: "grid",
+    });
+    doc.save("OD_Requests_Report.pdf");
   };
 
   if (loading || statsLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="60vh"
+      >
         <CircularProgress />
       </Box>
     );
@@ -215,11 +294,11 @@ const AdminManagement = () => {
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: '100%' }}>
+          <Paper sx={{ p: 2, height: "100%" }}>
             <Typography variant="h6" gutterBottom>
               Student Distribution by Year
             </Typography>
-            <Box sx={{ height: 300, position: 'relative' }}>
+            <Box sx={{ height: 300, position: "relative" }}>
               {studentStats.length > 0 ? (
                 <Pie data={chartData} options={chartOptions} />
               ) : (
@@ -230,7 +309,7 @@ const AdminManagement = () => {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: '100%' }}>
+          <Paper sx={{ p: 2, height: "100%" }}>
             <Typography variant="h6" gutterBottom>
               Statistics Summary
             </Typography>
@@ -260,7 +339,7 @@ const AdminManagement = () => {
       )}
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={5}>
           <TextField
             fullWidth
             variant="outlined"
@@ -276,7 +355,7 @@ const AdminManagement = () => {
             }}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={5}>
           <TextField
             select
             fullWidth
@@ -291,6 +370,24 @@ const AdminManagement = () => {
             <MenuItem value="rollNumber">Search by Roll Number</MenuItem>
             <MenuItem value="year">Search by Year</MenuItem>
           </TextField>
+        </Grid>
+        <Grid
+          item
+          xs={12}
+          md={2}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Button
+            variant="contained"
+            color="secondary"
+            fullWidth
+            onClick={generatePDF}
+            sx={{ height: "100%" }}
+          >
+            Download PDF
+          </Button>
         </Grid>
       </Grid>
 
@@ -316,32 +413,36 @@ const AdminManagement = () => {
             <TableBody>
               {filteredRequests.map((request) => (
                 <TableRow key={request._id}>
-                  <TableCell>{request.student?.name || 'N/A'}</TableCell>
-                  <TableCell>{request.student?.registerNo || 'N/A'}</TableCell>
-                  <TableCell>{request.department || 'N/A'}</TableCell>
-                  <TableCell>{request.eventName || 'N/A'}</TableCell>
+                  <TableCell>{request.student?.name || "N/A"}</TableCell>
+                  <TableCell>{request.student?.registerNo || "N/A"}</TableCell>
+                  <TableCell>{request.department || "N/A"}</TableCell>
+                  <TableCell>{request.eventName || "N/A"}</TableCell>
                   <TableCell>
-                    {request.eventDate ? new Date(request.eventDate).toLocaleDateString() : 'N/A'}
+                    {request.eventDate
+                      ? new Date(request.eventDate).toLocaleDateString()
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
-                    <Tooltip title={request.reason || 'No reason provided'}>
+                    <Tooltip title={request.reason || "No reason provided"}>
                       <Typography noWrap style={{ maxWidth: 200 }}>
-                        {request.reason || 'N/A'}
+                        {request.reason || "N/A"}
                       </Typography>
                     </Tooltip>
                   </TableCell>
-                  <TableCell>{request.classAdvisor?.name || 'N/A'}</TableCell>
+                  <TableCell>{request.classAdvisor?.name || "N/A"}</TableCell>
                   <TableCell>
                     <Chip
-                      label={request.status?.replace(/_/g, ' ') || 'N/A'}
+                      label={request.status?.replace(/_/g, " ") || "N/A"}
                       color={getStatusColor(request.status)}
                     />
                   </TableCell>
                   <TableCell>
-                    {getTimeElapsed(request.lastStatusChangeAt || request.createdAt)}
+                    {getTimeElapsed(
+                      request.lastStatusChangeAt || request.createdAt
+                    )}
                   </TableCell>
                   <TableCell>
-                    {request.status === 'forwarded_to_admin' && (
+                    {request.status === "forwarded_to_admin" && (
                       <Button
                         variant="contained"
                         color="primary"
@@ -362,4 +463,4 @@ const AdminManagement = () => {
   );
 };
 
-export default AdminManagement; 
+export default AdminManagement;
