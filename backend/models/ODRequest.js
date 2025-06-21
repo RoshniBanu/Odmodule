@@ -62,6 +62,10 @@ const odRequestSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    brochure: {
+      type: String,
+      required: true,
+    },
     status: {
       type: String,
       enum: ["pending", "approved_by_advisor", "approved_by_hod", "rejected", "forwarded_to_admin", "forwarded_to_hod"],
