@@ -17,6 +17,7 @@ const {
   sendODRequestNotification,
   sendProofVerificationNotification,
 } = require("../utils/emailService");
+const Setting = require("../models/Setting");
 
 // Helper function to draw a table row with cell content (no borders drawn by this function)
 function drawTableRowContent(
@@ -475,22 +476,34 @@ router.get(
   protect,
   hod,
   asyncHandler(async (req, res) => {
-    console.log("HOD Request - User:", req.user);
-
     try {
-      console.log("Fetching requests for department:", req.user.department);
+      // Get the auto-forward timeout (in minutes)
+      let timeoutSetting = await Setting.findOne({
+        key: "autoForwardFacultyTimeout",
+      });
+      let timeoutMinutes = timeoutSetting ? Number(timeoutSetting.value) : 60;
+      let now = new Date();
+      // Only show requests that are:
+      // - forwarded_to_hod
+      // - OR approved_by_advisor AND waiting period expired
       const odRequests = await ODRequest.find({
         department: req.user.department,
+        $or: [
+          { status: "forwarded_to_hod" },
+          {
+            status: "approved_by_advisor",
+            advisorApprovedAt: {
+              $lte: new Date(now.getTime() - timeoutMinutes * 60 * 1000),
+            },
+          },
+        ],
       })
         .populate("student", "name email registerNo")
         .populate("classAdvisor", "name email")
         .populate("notifyFaculty", "name email")
         .sort({ createdAt: -1 });
-
-      console.log("Found requests:", odRequests.length);
       res.json(odRequests);
     } catch (error) {
-      console.error("Error fetching HOD requests:", error);
       res.status(500).json({
         message: "Error fetching requests",
         error: error.message,
@@ -1185,15 +1198,22 @@ router.put(
   })
 );
 
-// Middleware to check for unresponded requests
-const checkUnrespondedRequests = async () => {
-  const thirtySecondsAgo = new Date(Date.now() - 30000);
+let autoForwardTimeoutMinutes = 60;
+let autoForwardInterval = null;
 
+const loadAutoForwardTimeout = async () => {
+  const setting = await Setting.findOne({ key: "autoForwardFacultyTimeout" });
+  autoForwardTimeoutMinutes = setting ? Number(setting.value) : 60;
+};
+
+const checkUnrespondedRequests = async () => {
+  const threshold = new Date(
+    Date.now() - autoForwardTimeoutMinutes * 60 * 1000
+  );
   const unrespondedRequests = await ODRequest.find({
     status: "pending",
-    lastStatusChangeAt: { $lt: thirtySecondsAgo },
+    lastStatusChangeAt: { $lt: threshold },
   });
-
   for (const request of unrespondedRequests) {
     request.status = "forwarded_to_admin";
     request.forwardedToAdminAt = Date.now();
@@ -1202,8 +1222,13 @@ const checkUnrespondedRequests = async () => {
   }
 };
 
-// Run the check every 30 seconds
-setInterval(checkUnrespondedRequests, 30000);
+const startAutoForwardInterval = async () => {
+  await loadAutoForwardTimeout();
+  if (autoForwardInterval) clearInterval(autoForwardInterval);
+  autoForwardInterval = setInterval(checkUnrespondedRequests, 60 * 1000); // check every minute
+};
+
+startAutoForwardInterval();
 
 // @desc    Get student statistics for admin
 // @route   GET /api/od-requests/admin/student-stats

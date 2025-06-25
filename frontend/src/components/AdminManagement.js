@@ -41,9 +41,11 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import dayjs from "dayjs";
 import { isAfter, isBefore, isEqual, startOfDay, endOfDay } from "date-fns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import EditIcon from '@mui/icons-material/Edit';
-import IconButton from '@mui/material/IconButton';
-import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from "@mui/icons-material/Edit";
+import IconButton from "@mui/material/IconButton";
+import DeleteIcon from "@mui/icons-material/Delete";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 // Register ChartJS components
 ChartJS.register(ArcElement, ChartTooltip, Legend, Title);
@@ -88,6 +90,28 @@ const AdminManagement = () => {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteEventTypeValue, setDeleteEventTypeValue] = useState("");
+
+  const [autoForwardTimeout, setAutoForwardTimeout] = useState(60);
+  const [autoForwardTimeoutInput, setAutoForwardTimeoutInput] = useState(60);
+  const [autoForwardTimeoutLoading, setAutoForwardTimeoutLoading] =
+    useState(false);
+  const [autoForwardTimeoutMsg, setAutoForwardTimeoutMsg] = useState("");
+
+  const allColumns = [
+    { label: "Student Name", key: "studentName" },
+    { label: "Roll Number", key: "rollNumber" },
+    { label: "Department", key: "department" },
+    { label: "Event", key: "eventName" },
+    { label: "Date", key: "eventDate" },
+    { label: "Reason", key: "reason" },
+    { label: "Faculty Advisor", key: "facultyAdvisor" },
+    { label: "Status", key: "status" },
+    { label: "Time Elapsed", key: "timeElapsed" },
+  ];
+  const [excelDialogOpen, setExcelDialogOpen] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState(
+    allColumns.map((col) => col.key)
+  );
 
   const fetchStudentStats = async () => {
     try {
@@ -184,6 +208,29 @@ const AdminManagement = () => {
   useEffect(() => {
     fetchStudentStats();
     fetchAllRequests();
+  }, []);
+
+  useEffect(() => {
+    const fetchTimeout = async () => {
+      try {
+        setAutoForwardTimeoutLoading(true);
+        const res = await axios.get(
+          `${API_BASE_URL}/api/settings/auto-forward-faculty-timeout`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        setAutoForwardTimeout(res.data.timeout);
+        setAutoForwardTimeoutInput(res.data.timeout);
+      } catch (err) {
+        setAutoForwardTimeoutMsg("Failed to fetch auto-forward timeout");
+      } finally {
+        setAutoForwardTimeoutLoading(false);
+      }
+    };
+    fetchTimeout();
   }, []);
 
   const handleSearch = (event) => {
@@ -443,98 +490,67 @@ const AdminManagement = () => {
     },
   };
 
-  // PDF download handler
-  const handleDownloadPDF = async () => {
-    const doc = new jsPDF();
-    // Draw border (A4 size: 210 x 297 mm, jsPDF default unit is 'mm')
-    const margin = 8;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    doc.setLineWidth(1);
-    doc.rect(margin, margin, pageWidth - 2 * margin, pageHeight - 2 * margin);
+  const handleOpenExcelDialog = () => setExcelDialogOpen(true);
+  const handleCloseExcelDialog = () => setExcelDialogOpen(false);
+  const handleColumnToggle = (key) => {
+    setSelectedColumns((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
 
-    // Add logo (assuming logo.png is in public folder)
-    // Fetch logo as base64
-    const logoUrl = `${window.location.origin}/logo.png`;
-    const getBase64ImageFromUrl = async (url) => {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
+  const handleDownloadExcel = () => {
+    // Prepare data for Excel
+    const data = filteredRequests.map((request) => {
+      const row = {};
+      allColumns.forEach((col) => {
+        if (!selectedColumns.includes(col.key)) return;
+        switch (col.key) {
+          case "studentName":
+            row[col.label] = request.student?.name || "N/A";
+            break;
+          case "rollNumber":
+            row[col.label] = request.student?.registerNo || "N/A";
+            break;
+          case "department":
+            row[col.label] = request.department || "N/A";
+            break;
+          case "eventName":
+            row[col.label] = request.eventName || "N/A";
+            break;
+          case "eventDate":
+            row[col.label] = request.eventDate
+              ? new Date(request.eventDate).toLocaleDateString()
+              : "N/A";
+            break;
+          case "reason":
+            row[col.label] = request.reason || "N/A";
+            break;
+          case "facultyAdvisor":
+            row[col.label] = request.classAdvisor?.name || "N/A";
+            break;
+          case "status":
+            row[col.label] = request.status?.replace(/_/g, " ") || "N/A";
+            break;
+          case "timeElapsed":
+            row[col.label] = getTimeElapsed(
+              request.lastStatusChangeAt || request.createdAt
+            );
+            break;
+          default:
+            row[col.label] = "";
+        }
       });
-    };
-    const logoBase64 = await getBase64ImageFromUrl(logoUrl);
-    // Logo size and position
-    const logoWidth = 22; // mm
-    const logoHeight = 22; // mm
-    const logoX = margin + 2;
-    const logoY = margin + 2;
-
-    // Title position (to the right of the logo, vertically centered)
-    // Title positions (to the right of the logo)
-    const titleX = logoX + logoWidth + 8;
-    const titleY1 = logoY + 8; // First line
-    const titleY2 = titleY1 + 10; // Second line
-
-    doc.addImage(logoBase64, "PNG", logoX, logoY, logoWidth, logoHeight);
-    doc.setFontSize(15);
-    doc.text("Anna University College of Engineering Guindy", titleX, titleY1);
-    doc.setFontSize(13);
-    doc.text("OD Requests", titleX, titleY2);
-
-    const tableStartY = Math.max(logoY + logoHeight, titleY2) + 8; // Move table below logo and titles
-
-    const tableColumn = [
-      "Student Name",
-      "Roll Number",
-      "Department",
-      "Event",
-      "Date",
-      "Reason",
-      "Faculty Advisor",
-      "Status",
-      "Time Elapsed",
-    ];
-    const tableRows = filteredRequests.map((request) => [
-      request.student?.name || "N/A",
-      request.student?.registerNo || "N/A",
-      request.department || "N/A",
-      request.eventName || "N/A",
-      request.eventDate
-        ? new Date(request.eventDate).toLocaleDateString()
-        : "N/A",
-      request.reason || "N/A",
-      request.classAdvisor?.name || "N/A",
-      request.status?.replace(/_/g, " "),
-      getTimeElapsed(request.lastStatusChangeAt || request.createdAt),
-    ]);
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: tableStartY,
-      margin: { left: margin, right: margin },
-      didDrawPage: () => {
-        doc.setLineWidth(0.5);
-        doc.rect(
-          margin,
-          margin,
-          pageWidth - 2 * margin,
-          pageHeight - 2 * margin
-        );
-        doc.addImage(logoBase64, "PNG", logoX, logoY, logoWidth, logoHeight);
-        doc.setFontSize(15);
-        doc.text(
-          "Anna University College of Engineering Guindy",
-          titleX,
-          titleY1
-        );
-        doc.setFontSize(13);
-        doc.text("OD Requests", titleX, titleY2);
-      },
+      return row;
     });
-    doc.save("od-requests.pdf");
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "OD Requests");
+    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    saveAs(
+      new Blob([excelBuffer], { type: "application/octet-stream" }),
+      "od-requests.xlsx"
+    );
+    setExcelDialogOpen(false);
   };
 
   // Open dialog
@@ -604,20 +620,19 @@ const AdminManagement = () => {
         { headers: { "x-auth-token": localStorage.getItem("token") } }
       );
       // Remove the request from the backend
-      await axios.delete(
-        `${API_BASE_URL}/api/settings/event-type-requests`,
-        { data: { eventType: finalEventType }, headers: { "x-auth-token": localStorage.getItem("token") } }
-      );
+      await axios.delete(`${API_BASE_URL}/api/settings/event-type-requests`, {
+        data: { eventType: finalEventType },
+        headers: { "x-auth-token": localStorage.getItem("token") },
+      });
       // Remove the request from the list
       const updatedRequests = [...eventTypeRequests];
       updatedRequests.splice(idx, 1);
       setEventTypeRequests(updatedRequests);
       setEventTypeMsg(`Added '${finalEventType}' to event types.`);
       // Refresh event types
-      const res = await axios.get(
-        `${API_BASE_URL}/api/settings/event-types`,
-        { headers: { "x-auth-token": localStorage.getItem("token") } }
-      );
+      const res = await axios.get(`${API_BASE_URL}/api/settings/event-types`, {
+        headers: { "x-auth-token": localStorage.getItem("token") },
+      });
       setEventTypes(res.data.eventTypes || []);
     } catch (err) {
       setEventTypeMsg(
@@ -630,10 +645,10 @@ const AdminManagement = () => {
     setEventTypeMsg("");
     // Remove from backend
     try {
-      await axios.delete(
-        `${API_BASE_URL}/api/settings/event-type-requests`,
-        { data: { eventType: eventTypeRequests[idx].eventType }, headers: { "x-auth-token": localStorage.getItem("token") } }
-      );
+      await axios.delete(`${API_BASE_URL}/api/settings/event-type-requests`, {
+        data: { eventType: eventTypeRequests[idx].eventType },
+        headers: { "x-auth-token": localStorage.getItem("token") },
+      });
     } catch (err) {}
     // Remove from UI
     const updatedRequests = [...eventTypeRequests];
@@ -675,16 +690,40 @@ const AdminManagement = () => {
 
   const handleDeleteEventType = async () => {
     try {
-      await axios.delete(
-        `${API_BASE_URL}/api/settings/event-types`,
-        { data: { eventType: deleteEventTypeValue }, headers: { "x-auth-token": localStorage.getItem("token") } }
-      );
+      await axios.delete(`${API_BASE_URL}/api/settings/event-types`, {
+        data: { eventType: deleteEventTypeValue },
+        headers: { "x-auth-token": localStorage.getItem("token") },
+      });
       setEventTypes(eventTypes.filter((et) => et !== deleteEventTypeValue));
       setDeleteDialogOpen(false);
       setDeleteEventTypeValue("");
       setEventTypeMsg(`Deleted '${deleteEventTypeValue}' from event types.`);
     } catch (err) {
-      setEventTypeMsg(err.response?.data?.message || "Failed to delete event type.");
+      setEventTypeMsg(
+        err.response?.data?.message || "Failed to delete event type."
+      );
+    }
+  };
+
+  const handleUpdateTimeout = async () => {
+    setAutoForwardTimeoutLoading(true);
+    setAutoForwardTimeoutMsg("");
+    try {
+      const res = await axios.put(
+        `${API_BASE_URL}/api/settings/auto-forward-faculty-timeout`,
+        { timeout: Number(autoForwardTimeoutInput) },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      setAutoForwardTimeout(res.data.timeout);
+      setAutoForwardTimeoutMsg("Timeout updated successfully");
+    } catch (err) {
+      setAutoForwardTimeoutMsg(
+        err.response?.data?.message || "Failed to update timeout"
+      );
+    } finally {
+      setAutoForwardTimeoutLoading(false);
     }
   };
 
@@ -772,11 +811,12 @@ const AdminManagement = () => {
 
         <Box display="flex" justifyContent="flex-end" mb={2}>
           <Button
-            variant="outlined"
-            color="secondary"
-            onClick={handleDownloadPDF}
+            variant="contained"
+            color="success"
+            onClick={handleOpenExcelDialog}
+            sx={{ ml: 2 }}
           >
-            Download PDF
+            Download Excel
           </Button>
         </Box>
 
@@ -1018,7 +1058,11 @@ const AdminManagement = () => {
           <Typography variant="h6" gutterBottom>
             Event Type Requests
           </Typography>
-          {eventTypeMsg && <Alert severity="info" sx={{ mb: 2 }}>{eventTypeMsg}</Alert>}
+          {eventTypeMsg && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {eventTypeMsg}
+            </Alert>
+          )}
           {eventTypeRequests.length === 0 ? (
             <Alert severity="success">No pending event type requests.</Alert>
           ) : (
@@ -1035,21 +1079,29 @@ const AdminManagement = () => {
                   {eventTypeRequests.map((req, idx) => (
                     <TableRow key={idx}>
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
                           {req.eventType}
-                          <IconButton size="small" sx={{ ml: 1 }} onClick={() => handleOpenEditDialog(idx)}>
+                          <IconButton
+                            size="small"
+                            sx={{ ml: 1 }}
+                            onClick={() => handleOpenEditDialog(idx)}
+                          >
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Box>
                       </TableCell>
-                      <TableCell>{req.date ? new Date(req.date).toLocaleString() : "-"}</TableCell>
+                      <TableCell>
+                        {req.date ? new Date(req.date).toLocaleString() : "-"}
+                      </TableCell>
                       <TableCell>
                         <Button
                           variant="contained"
                           color="primary"
                           size="small"
                           sx={{ mr: 1 }}
-                          onClick={() => handleAcceptEventType(req.eventType, idx)}
+                          onClick={() =>
+                            handleAcceptEventType(req.eventType, idx)
+                          }
                         >
                           Accept
                         </Button>
@@ -1088,7 +1140,10 @@ const AdminManagement = () => {
                   <TableRow key={idx}>
                     <TableCell>{et}</TableCell>
                     <TableCell>
-                      <IconButton color="error" onClick={() => handleOpenDeleteDialog(et)}>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleOpenDeleteDialog(et)}
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </TableCell>
@@ -1098,6 +1153,44 @@ const AdminManagement = () => {
             </Table>
           </TableContainer>
         </Paper>
+
+        <Box sx={{ mb: 3, p: 2, border: "1px solid #eee", borderRadius: 2 }}>
+          <Typography variant="h6">Auto-Forward Faculty Timeout</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1 }}>
+            <TextField
+              label="Timeout (minutes)"
+              type="number"
+              value={autoForwardTimeoutInput}
+              onChange={(e) => setAutoForwardTimeoutInput(e.target.value)}
+              size="small"
+              inputProps={{ min: 1 }}
+              disabled={autoForwardTimeoutLoading}
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleUpdateTimeout}
+              disabled={
+                autoForwardTimeoutLoading || Number(autoForwardTimeoutInput) < 1
+              }
+            >
+              Update
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              Current: {autoForwardTimeout} min
+            </Typography>
+          </Box>
+          {autoForwardTimeoutMsg && (
+            <Alert
+              severity={
+                autoForwardTimeoutMsg.includes("success") ? "success" : "error"
+              }
+              sx={{ mt: 1 }}
+            >
+              {autoForwardTimeoutMsg}
+            </Alert>
+          )}
+        </Box>
       </Box>
 
       {/* Edit Event Type Dialog */}
@@ -1111,12 +1204,16 @@ const AdminManagement = () => {
             type="text"
             fullWidth
             value={editEventTypeValue}
-            onChange={e => setEditEventTypeValue(e.target.value)}
+            onChange={(e) => setEditEventTypeValue(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseEditDialog}>Cancel</Button>
-          <Button onClick={handleSaveEditEventType} variant="contained" color="primary">
+          <Button
+            onClick={handleSaveEditEventType}
+            variant="contained"
+            color="primary"
+          >
             Save
           </Button>
         </DialogActions>
@@ -1126,12 +1223,55 @@ const AdminManagement = () => {
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Delete Event Type</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to delete '{deleteEventTypeValue}' from event types?</Typography>
+          <Typography>
+            Are you sure you want to delete '{deleteEventTypeValue}' from event
+            types?
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDeleteDialog}>Cancel</Button>
-          <Button onClick={handleDeleteEventType} variant="contained" color="error">
+          <Button
+            onClick={handleDeleteEventType}
+            variant="contained"
+            color="error"
+          >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Excel Dialog */}
+      <Dialog open={excelDialogOpen} onClose={handleCloseExcelDialog}>
+        <DialogTitle>Select Columns to Export</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {allColumns.map((col) => (
+              <Box key={col.key} sx={{ display: "flex", alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={selectedColumns.includes(col.key)}
+                  onChange={() => handleColumnToggle(col.key)}
+                  id={`col-checkbox-${col.key}`}
+                />
+                <label
+                  htmlFor={`col-checkbox-${col.key}`}
+                  style={{ marginLeft: 8 }}
+                >
+                  {col.label}
+                </label>
+              </Box>
+            ))}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseExcelDialog}>Cancel</Button>
+          <Button
+            onClick={handleDownloadExcel}
+            variant="contained"
+            color="success"
+            disabled={selectedColumns.length === 0}
+          >
+            Download
           </Button>
         </DialogActions>
       </Dialog>

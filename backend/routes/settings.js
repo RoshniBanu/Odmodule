@@ -69,7 +69,8 @@ router.post("/event-types", async (req, res) => {
     return res.status(403).json({ message: "Only admin can add event types" });
   }
   const { eventType } = req.body;
-  if (!eventType) return res.status(400).json({ message: "Event type required" });
+  if (!eventType)
+    return res.status(400).json({ message: "Event type required" });
   let setting = await Setting.findOne({ key: "eventTypes" });
   let eventTypes = setting ? JSON.parse(setting.value) : ["hackathon"];
   if (eventTypes.includes(eventType)) {
@@ -87,10 +88,15 @@ router.post("/event-types", async (req, res) => {
 // POST student requests a new event type
 router.post("/event-type-requests", async (req, res) => {
   const { eventType } = req.body;
-  if (!eventType) return res.status(400).json({ message: "Event type required" });
+  if (!eventType)
+    return res.status(400).json({ message: "Event type required" });
   let setting = await Setting.findOne({ key: "eventTypeRequests" });
   let requests = setting ? JSON.parse(setting.value) : [];
-  requests.push({ eventType, requestedBy: req.user?._id || null, date: new Date() });
+  requests.push({
+    eventType,
+    requestedBy: req.user?._id || null,
+    date: new Date(),
+  });
   await Setting.findOneAndUpdate(
     { key: "eventTypeRequests" },
     { value: JSON.stringify(requests) },
@@ -103,7 +109,9 @@ router.post("/event-type-requests", async (req, res) => {
 router.get("/event-type-requests", async (req, res) => {
   // TODO: Replace with real admin check
   if (!req.user || req.user.role !== "admin") {
-    return res.status(403).json({ message: "Only admin can view event type requests" });
+    return res
+      .status(403)
+      .json({ message: "Only admin can view event type requests" });
   }
   let setting = await Setting.findOne({ key: "eventTypeRequests" });
   let requests = setting ? JSON.parse(setting.value) : [];
@@ -113,10 +121,13 @@ router.get("/event-type-requests", async (req, res) => {
 // DELETE an event type request (admin only)
 router.delete("/event-type-requests", async (req, res) => {
   if (!req.user || req.user.role !== "admin") {
-    return res.status(403).json({ message: "Only admin can delete event type requests" });
+    return res
+      .status(403)
+      .json({ message: "Only admin can delete event type requests" });
   }
   const { eventType } = req.body;
-  if (!eventType) return res.status(400).json({ message: "Event type required" });
+  if (!eventType)
+    return res.status(400).json({ message: "Event type required" });
   let setting = await Setting.findOne({ key: "eventTypeRequests" });
   let requests = setting ? JSON.parse(setting.value) : [];
   requests = requests.filter((req) => req.eventType !== eventType);
@@ -131,10 +142,13 @@ router.delete("/event-type-requests", async (req, res) => {
 // DELETE an event type (admin only)
 router.delete("/event-types", async (req, res) => {
   if (!req.user || req.user.role !== "admin") {
-    return res.status(403).json({ message: "Only admin can delete event types" });
+    return res
+      .status(403)
+      .json({ message: "Only admin can delete event types" });
   }
   const { eventType } = req.body;
-  if (!eventType) return res.status(400).json({ message: "Event type required" });
+  if (!eventType)
+    return res.status(400).json({ message: "Event type required" });
   let setting = await Setting.findOne({ key: "eventTypes" });
   let eventTypes = setting ? JSON.parse(setting.value) : [];
   eventTypes = eventTypes.filter((et) => et !== eventType);
@@ -144,6 +158,35 @@ router.delete("/event-types", async (req, res) => {
     { upsert: true, new: true }
   );
   res.json({ eventTypes });
+});
+
+// GET auto-forward faculty timeout
+router.get("/auto-forward-faculty-timeout", async (req, res) => {
+  try {
+    const setting = await Setting.findOne({ key: "autoForwardFacultyTimeout" });
+    res.json({ timeout: setting ? Number(setting.value) : 60 }); // default 60 minutes
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch timeout" });
+  }
+});
+
+// PUT auto-forward faculty timeout (admin only)
+router.put("/auto-forward-faculty-timeout", async (req, res) => {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ message: "Only admin can update timeout" });
+  }
+  const { timeout } = req.body;
+  if (typeof timeout !== "number" || timeout < 1) {
+    return res
+      .status(400)
+      .json({ message: "Timeout must be a positive number (minutes)" });
+  }
+  const setting = await Setting.findOneAndUpdate(
+    { key: "autoForwardFacultyTimeout" },
+    { value: String(timeout) },
+    { upsert: true, new: true }
+  );
+  res.json({ timeout: Number(setting.value) });
 });
 
 module.exports = router;
