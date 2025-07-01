@@ -113,6 +113,15 @@ const AdminManagement = () => {
     allColumns.map((col) => col.key)
   );
 
+  const defaultEventTypes = [
+    "hackathon",
+    "conference",
+    "symposium",
+    "sports",
+    "NSS",
+    "workshop",
+  ];
+
   const fetchStudentStats = async () => {
     try {
       const response = await axios.get(
@@ -196,9 +205,17 @@ const AdminManagement = () => {
           `${API_BASE_URL}/api/settings/event-types`,
           { headers: { "x-auth-token": localStorage.getItem("token") } }
         );
-        setEventTypes(res.data.eventTypes || []);
+        // Merge backend and default event types, remove duplicates
+        const backendTypes =
+          Array.isArray(res.data.eventTypes) && res.data.eventTypes.length > 0
+            ? res.data.eventTypes
+            : [];
+        const mergedTypes = Array.from(
+          new Set([...defaultEventTypes, ...backendTypes])
+        );
+        setEventTypes(mergedTypes);
       } catch (err) {
-        setEventTypes([]);
+        setEventTypes(defaultEventTypes);
       }
     };
     fetchEventTypeRequests();
@@ -1040,7 +1057,12 @@ const AdminManagement = () => {
                         <Button
                           variant="outlined"
                           size="small"
-                          onClick={() => window.open(`http://localhost:5000/${request.brochure}`, '_blank')}
+                          onClick={() =>
+                            window.open(
+                              `http://localhost:5000/${request.brochure}`,
+                              "_blank"
+                            )
+                          }
                         >
                           View Brochure
                         </Button>

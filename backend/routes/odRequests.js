@@ -126,6 +126,7 @@ router.post(
   student,
   brochureUpload.single("brochure"),
   asyncHandler(async (req, res) => {
+    console.log("REQ.BODY:", req.body); // <-- Add this line
     try {
       const {
         eventName,
@@ -162,7 +163,7 @@ router.post(
       const odRequest = new ODRequest({
         student: req.user._id,
         eventName,
-        eventType,
+        eventType: eventType ? String(eventType) : undefined,
         eventDate,
         startDate,
         endDate,
@@ -179,7 +180,9 @@ router.post(
         brochure: req.file ? req.file.path : null,
       });
 
+      console.log("eventType before save:", eventType);
       await odRequest.save();
+      console.log("odRequest object:", odRequest);
 
       // Get faculty advisor details
       const facultyAdvisor = await User.findById(student.facultyAdvisor);
@@ -330,7 +333,7 @@ router.put(
     }
 
     // Fallback for eventType if missing
-    const eventTypeToSend = odRequest.eventType || 'Unknown';
+    const eventTypeToSend = odRequest.eventType || "Unknown";
 
     await sendProofVerificationNotification(
       facultyEmails,
@@ -484,26 +487,9 @@ router.get(
   hod,
   asyncHandler(async (req, res) => {
     try {
-      // Get the auto-forward timeout (in minutes)
-      let timeoutSetting = await Setting.findOne({
-        key: "autoForwardFacultyTimeout",
-      });
-      let timeoutMinutes = timeoutSetting ? Number(timeoutSetting.value) : 60;
-      let now = new Date();
-      // Only show requests that are:
-      // - forwarded_to_hod
-      // - OR approved_by_advisor AND waiting period expired
+      // Fetch all OD requests for the HOD's department
       const odRequests = await ODRequest.find({
         department: req.user.department,
-        $or: [
-          { status: "forwarded_to_hod" },
-          {
-            status: "approved_by_advisor",
-            advisorApprovedAt: {
-              $lte: new Date(now.getTime() - timeoutMinutes * 60 * 1000),
-            },
-          },
-        ],
       })
         .populate("student", "name email registerNo")
         .populate("classAdvisor", "name email")
@@ -758,6 +744,26 @@ router.get(
     );
     studentDetailsCurrentY += studentDetailsRowHeight;
 
+    drawTableRowContent(
+      doc,
+      [`${itemCounter++}. Event Name:`, odRequest.eventName],
+      studentDetailsCellWidths,
+      studentDetailsStartX,
+      studentDetailsCurrentY,
+      studentDetailsRowHeight
+    );
+    studentDetailsCurrentY += studentDetailsRowHeight;
+
+    drawTableRowContent(
+      doc,
+      [`${itemCounter++}. Event Type:`, odRequest.eventType],
+      studentDetailsCellWidths,
+      studentDetailsStartX,
+      studentDetailsCurrentY,
+      studentDetailsRowHeight
+    );
+    studentDetailsCurrentY += studentDetailsRowHeight;
+
     // doc.moveDown(1); // Removed: continuous flow
 
     // PURPOSE Section (now combined with Student Details)
@@ -780,7 +786,7 @@ router.get(
     // Data rows for Purpose
     drawTableRowContent(
       doc,
-      [`${itemCounter++}. OD For What Purpose:`, odRequest.reason],
+      [`${itemCounter++}. Reason:`, odRequest.reason],
       purposeCellWidths,
       purposeStartX,
       purposeCurrentY,
@@ -1340,6 +1346,8 @@ const generateODLetterPDF = async (odRequest, outputPath) => {
     doc.text(`Register Number: ${odRequest.student.registerNo}`);
     doc.text(`Department: ${odRequest.student.department}`);
     doc.text(`Year: ${odRequest.student.year}`);
+    // Add this line for event type
+    doc.text(`Event Type: ${odRequest.eventType}`);
     doc.moveDown();
     doc.text(`Event Name: ${odRequest.eventName}`);
     doc.text(
@@ -1487,7 +1495,9 @@ const generateApprovedPDF = async (odRequest, outputPath) => {
     drawLabeledRow("Register Number:", odRequest.student.registerNo || "N/A");
     drawLabeledRow("Department:", odRequest.student.department);
     drawLabeledRow("Year:", odRequest.student.year);
-    drawLabeledRow("OD For What Purpose:", odRequest.reason);
+    drawLabeledRow("Event Type:", odRequest.eventType);
+    drawLabeledRow("Event Name:", odRequest.eventName);
+    drawLabeledRow("Reason:", odRequest.reason);
 
     const daysRequired =
       Math.ceil(

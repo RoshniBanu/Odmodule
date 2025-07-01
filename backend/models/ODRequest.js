@@ -68,7 +68,14 @@ const odRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "approved_by_advisor", "approved_by_hod", "rejected", "forwarded_to_admin", "forwarded_to_hod"],
+      enum: [
+        "pending",
+        "approved_by_advisor",
+        "approved_by_hod",
+        "rejected",
+        "forwarded_to_admin",
+        "forwarded_to_hod",
+      ],
       default: "pending",
     },
     advisorComment: {

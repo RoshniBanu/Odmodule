@@ -26,15 +26,15 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 
 const ODRequestForm = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     eventName: "",
-    eventType: "hackathon",
+    eventType: "",
     eventDate: null,
     startDate: null,
     endDate: null,
@@ -43,7 +43,16 @@ const ODRequestForm = () => {
     startTime: null,
     endTime: null,
   });
-  const [eventTypes, setEventTypes] = useState(["hackathon"]);
+  const defaultEventTypes = [
+    "hackathon",
+    "conference",
+    "symposium",
+    "sports",
+    "NSS",
+    "workshop",
+  ];
+
+  const [eventTypes, setEventTypes] = useState(defaultEventTypes);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [brochureFile, setBrochureFile] = useState(null);
@@ -52,15 +61,25 @@ const ODRequestForm = () => {
   const [requestEventTypeMsg, setRequestEventTypeMsg] = useState("");
 
   useEffect(() => {
-    // Fetch event types from backend
     const fetchEventTypes = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/settings/event-types", {
-          headers: { "x-auth-token": localStorage.getItem("token") },
-        });
-        setEventTypes(res.data.eventTypes || ["hackathon"]);
+        const res = await axios.get(
+          "http://localhost:5000/api/settings/event-types",
+          {
+            headers: { "x-auth-token": localStorage.getItem("token") },
+          }
+        );
+        // Merge backend and default event types, remove duplicates
+        const backendTypes =
+          Array.isArray(res.data.eventTypes) && res.data.eventTypes.length > 0
+            ? res.data.eventTypes
+            : [];
+        const mergedTypes = Array.from(
+          new Set([...defaultEventTypes, ...backendTypes])
+        );
+        setEventTypes(mergedTypes);
       } catch (err) {
-        setEventTypes(["hackathon"]);
+        setEventTypes(defaultEventTypes);
       }
     };
     fetchEventTypes();
@@ -128,12 +147,7 @@ const ODRequestForm = () => {
       const form = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== null && value !== undefined) {
-          // Convert Date objects to ISO strings
-          if (value instanceof Date && !isNaN(value)) {
-            form.append(key, value.toISOString());
-          } else {
-            form.append(key, value);
-          }
+          form.append(key, value);
         }
       });
       if (brochureFile) {
@@ -153,7 +167,7 @@ const ODRequestForm = () => {
       setSuccess("OD request submitted successfully");
       setFormData({
         eventName: "",
-        eventType: "hackathon",
+        eventType: "",
         eventDate: null,
         startDate: null,
         endDate: null,
@@ -200,7 +214,7 @@ const ODRequestForm = () => {
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
                 <FormControl fullWidth required>
                   <InputLabel id="event-type-label">Event Type</InputLabel>
                   <Select
@@ -210,9 +224,15 @@ const ODRequestForm = () => {
                     value={formData.eventType}
                     label="Event Type"
                     onChange={handleChange}
+                    required
                   >
+                    <MenuItem value="" disabled>
+                      Select Event Type
+                    </MenuItem>
                     {eventTypes.map((type) => (
-                      <MenuItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</MenuItem>
+                      <MenuItem key={type} value={type}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
@@ -326,7 +346,7 @@ const ODRequestForm = () => {
                 type="file"
                 accept=".pdf,application/pdf"
                 onChange={handleBrochureChange}
-                style={{ marginBottom: '1rem' }}
+                style={{ marginBottom: "1rem" }}
               />
             </Grid>
 
@@ -345,7 +365,10 @@ const ODRequestForm = () => {
         </Box>
       </Paper>
 
-      <Dialog open={requestDialogOpen} onClose={() => setRequestDialogOpen(false)}>
+      <Dialog
+        open={requestDialogOpen}
+        onClose={() => setRequestDialogOpen(false)}
+      >
         <DialogTitle>Request New Event Type</DialogTitle>
         <DialogContent>
           <TextField
@@ -355,9 +378,13 @@ const ODRequestForm = () => {
             type="text"
             fullWidth
             value={requestedEventType}
-            onChange={e => setRequestedEventType(e.target.value)}
+            onChange={(e) => setRequestedEventType(e.target.value)}
           />
-          {requestEventTypeMsg && <Alert severity="info" sx={{ mt: 2 }}>{requestEventTypeMsg}</Alert>}
+          {requestEventTypeMsg && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              {requestEventTypeMsg}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRequestDialogOpen(false)}>Cancel</Button>
