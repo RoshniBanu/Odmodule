@@ -17,15 +17,17 @@ import { useAuth } from "../contexts/AuthContext";
 import axios from "axios";
 
 const Register = () => {
+  // Modify initial formData state
+  // Update initial formData state to include department
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    role: "student", // Default role
-    department: "",
+    role: "student",
     year: "",
     facultyAdvisor: "",
-    registerNo: "", // Add register number field
+    registerNo: "",
+    department: "CSE" // Add default department
   });
   const [error, setError] = useState("");
   const [facultyAdvisors, setFacultyAdvisors] = useState([]);
@@ -147,21 +149,20 @@ const Register = () => {
               <MenuItem value="admin">Admin</MenuItem>
             </Select>
           </FormControl>
-          {(formData.role === "student" ||
-            formData.role === "faculty" ||
-            formData.role === "hod") && (
-            <>
-              <TextField
-                fullWidth
-                label="Department"
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-                margin="normal"
-                required
-              />
-            </>
+          {/* Remove department field for students */}
+          {(formData.role === "faculty" || formData.role === "hod") && (
+            <TextField
+              fullWidth
+              label="Department"
+              name="department"
+              value={formData.department || ""}
+              onChange={handleChange}
+              margin="normal"
+              required
+            />
           )}
+          // Remove department-related conditional rendering
+          // Update the student registration form section
           {formData.role === "student" && (
             <>
               <TextField
@@ -173,6 +174,21 @@ const Register = () => {
                 margin="normal"
                 required
               />
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Department</InputLabel>
+                <Select
+                  name="department"
+                  value={formData.department}
+                  onChange={handleChange}
+                  label="Department"
+                >
+                  <MenuItem value="CSE">Computer Science and Engineering</MenuItem>
+                  <MenuItem value="ECE">Electronics and Communication Engineering</MenuItem>
+                  <MenuItem value="EEE">Electrical and Electronics Engineering</MenuItem>
+                  <MenuItem value="MECH">Mechanical Engineering</MenuItem>
+                  <MenuItem value="CIVIL">Civil Engineering</MenuItem>
+                </Select>
+              </FormControl>
               <TextField
                 fullWidth
                 label="Year"

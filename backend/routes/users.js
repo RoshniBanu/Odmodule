@@ -46,6 +46,7 @@ router.get(
 // @desc    Get user profile
 // @route   GET /api/users/profile
 // @access  Private
+// Modify profile route response
 router.get(
   "/profile",
   protect,
@@ -57,7 +58,6 @@ router.get(
         name: user.name,
         email: user.email,
         role: user.role,
-        department: user.department,
         studentId: user.studentId,
       });
     } else {
@@ -67,9 +67,7 @@ router.get(
   })
 );
 
-// @desc    Update user profile
-// @route   PUT /api/users/profile
-// @access  Private
+// Modify profile update response
 router.put(
   "/profile",
   protect,
@@ -87,7 +85,6 @@ router.put(
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
-        department: updatedUser.department,
         studentId: updatedUser.studentId,
       });
     } else {
@@ -97,21 +94,20 @@ router.put(
   })
 );
 
-// @desc    Get users by department (HOD only)
-// @route   GET /api/users/department/:department
-// @access  Private/HOD
-router.get(
-  "/department/:department",
-  protect,
-  asyncHandler(async (req, res) => {
-    if (req.user.role !== "hod") {
-      res.status(403);
-      throw new Error("Not authorized as HOD");
-    }
-    const users = await User.find({ department: req.params.department });
-    res.json(users);
-  })
-);
+// Remove the department route entirely
+// DELETE: router.get("/department/:department", ...)
+
+// Modify faculty members route
+router.get('/faculty', protect, async (req, res) => {
+  try {
+    const facultyMembers = await User.find({ role: 'faculty' })
+      .select('name email');
+    res.json(facultyMembers);
+  } catch (error) {
+    console.error('Error fetching faculty members:', error);
+    res.status(500).json({ message: 'Error fetching faculty members', error: error.message });
+  }
+});
 
 // @desc    Get students (Faculty only)
 // @route   GET /api/users/students

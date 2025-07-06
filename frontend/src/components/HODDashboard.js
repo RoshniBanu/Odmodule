@@ -53,7 +53,7 @@ const HODDashboard = () => {
 
       const res = await axios.get("http://localhost:5000/api/od-requests/hod", {
         headers: {
-          "x-auth-token": token,
+          Authorization: `Bearer ${token}` // Changed from x-auth-token to Bearer token
         },
       });
 
@@ -102,6 +102,7 @@ const HODDashboard = () => {
     setSelectedRequest(null);
   };
 
+  // Update handleSubmit function to use the correct token format
   const handleSubmit = async (action) => {
     try {
       const token = localStorage.getItem("token");
@@ -111,8 +112,8 @@ const HODDashboard = () => {
       }
 
       const requestBody = {
-        status: action === 'approve' ? 'approved_by_hod' : 'rejected',
-        remarks: comment
+        status: action === "approve" ? "approved_by_hod" : "rejected",
+        remarks: comment,
       };
 
       await axios.put(
@@ -120,7 +121,7 @@ const HODDashboard = () => {
         requestBody,
         {
           headers: {
-            "x-auth-token": token,
+            Authorization: `Bearer ${token}` // Changed from x-auth-token to Bearer token
           },
         }
       );
@@ -129,11 +130,7 @@ const HODDashboard = () => {
       fetchRequests();
     } catch (err) {
       console.error("Error updating request:", err);
-      if (err.response) {
-        setError(err.response.data.message || `Error ${action}ing request`);
-      } else {
-        setError(`Error ${action}ing request. Please try again.`);
-      }
+      setError(err.response?.data?.message || `Error ${action}ing request`);
     }
   };
 
@@ -157,7 +154,12 @@ const HODDashboard = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="80vh"
+      >
         <CircularProgress />
       </Box>
     );
@@ -186,7 +188,6 @@ const HODDashboard = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Student Name</TableCell>
-                <TableCell>Department</TableCell>
                 <TableCell>Year</TableCell>
                 <TableCell>Event Name</TableCell>
                 <TableCell>Event Date</TableCell>
@@ -200,34 +201,48 @@ const HODDashboard = () => {
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
+            
             <TableBody>
               {requests.map((request) => (
                 <TableRow key={request._id}>
-                  <TableCell>{request.student.name}</TableCell>
-                  <TableCell>{request.department}</TableCell>
-                  <TableCell>{request.year}</TableCell>
+                  <TableCell>{request.student?.user?.name || "N/A"}</TableCell>
+                  <TableCell>{request.student?.year || "N/A"}</TableCell>
                   <TableCell>{request.eventName}</TableCell>
                   <TableCell>
-                    {new Date(request.eventDate).toLocaleDateString()}
+                    {request.eventDate
+                      ? new Date(request.eventDate).toLocaleDateString()
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
-                    {new Date(request.startDate).toLocaleDateString()}
+                    {request.startDate
+                      ? new Date(request.startDate).toLocaleDateString()
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
-                    {new Date(request.endDate).toLocaleDateString()}
+                    {request.endDate
+                      ? new Date(request.endDate).toLocaleDateString()
+                      : "N/A"}
                   </TableCell>
                   <TableCell>{request.reason}</TableCell>
                   <TableCell>{request.advisorComment || "-"}</TableCell>
                   <TableCell>{getStatusChip(request.status)}</TableCell>
                   <TableCell>
-                    {getProofVerificationChip(request.proofSubmitted, request.proofVerified)}
+                    {getProofVerificationChip(
+                      request.proofSubmitted,
+                      request.proofVerified
+                    )}
                   </TableCell>
                   <TableCell>
                     {request.brochure && (
                       <Button
                         variant="outlined"
                         size="small"
-                        onClick={() => window.open(`http://localhost:5000/${request.brochure}`, '_blank')}
+                        onClick={() =>
+                          window.open(
+                            `http://localhost:5000/${request.brochure}`,
+                            "_blank"
+                          )
+                        }
                         sx={{ ml: 1 }}
                       >
                         View Brochure
@@ -235,8 +250,9 @@ const HODDashboard = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    {(request.status === "approved_by_advisor" || request.status === "forwarded_to_hod") && (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                    {(request.status === "approved_by_advisor" ||
+                      request.status === "forwarded_to_hod") && (
+                      <Box sx={{ display: "flex", gap: 1 }}>
                         <Button
                           variant="contained"
                           color="success"

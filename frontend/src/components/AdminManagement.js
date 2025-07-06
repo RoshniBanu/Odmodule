@@ -100,7 +100,6 @@ const AdminManagement = () => {
   const allColumns = [
     { label: "Student Name", key: "studentName" },
     { label: "Roll Number", key: "rollNumber" },
-    { label: "Department", key: "department" },
     { label: "Event", key: "eventName" },
     { label: "Date", key: "eventDate" },
     { label: "Reason", key: "reason" },
@@ -262,7 +261,7 @@ const AdminManagement = () => {
     // Student Name
     if (
       filterStudent &&
-      !request.student?.name
+      !request.student?.user?.name
         ?.toLowerCase()
         .includes(filterStudent.toLowerCase())
     ) {
@@ -276,21 +275,6 @@ const AdminManagement = () => {
         .includes(filterRegno.toLowerCase())
     ) {
       return false;
-    }
-    // Year (free text)
-    if (filterYear) {
-      const yearStr = (request.year || "").toLowerCase();
-      if (
-        !yearStr.includes(filterYear.toLowerCase()) &&
-        !(
-          (filterYear === "1st" && yearStr === "1") ||
-          (filterYear === "2nd" && yearStr === "2") ||
-          (filterYear === "3rd" && yearStr === "3") ||
-          (filterYear === "4th" && yearStr === "4")
-        )
-      ) {
-        return false;
-      }
     }
     // Year Level (dropdown)
     if (
@@ -515,21 +499,18 @@ const AdminManagement = () => {
     );
   };
 
+  // Update Excel export logic
   const handleDownloadExcel = () => {
-    // Prepare data for Excel
     const data = filteredRequests.map((request) => {
       const row = {};
       allColumns.forEach((col) => {
         if (!selectedColumns.includes(col.key)) return;
         switch (col.key) {
           case "studentName":
-            row[col.label] = request.student?.name || "N/A";
+            row[col.label] = request.student?.user?.name || "N/A";
             break;
           case "rollNumber":
             row[col.label] = request.student?.registerNo || "N/A";
-            break;
-          case "department":
-            row[col.label] = request.department || "N/A";
             break;
           case "eventName":
             row[col.label] = request.eventName || "N/A";
@@ -625,6 +606,7 @@ const AdminManagement = () => {
     setFilterYearLevel("");
     setFilterAcademicYear("");
     setFilterEvent("");
+    setAcademicYearRange([null, null]);
   };
 
   const handleAcceptEventType = async (eventType, idx) => {
@@ -925,15 +907,6 @@ const AdminManagement = () => {
           </Grid>
           <Grid item xs={12} md={2}>
             <TextField
-              fullWidth
-              variant="outlined"
-              label="Year"
-              value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value)}
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <TextField
               select
               fullWidth
               variant="outlined"
@@ -1008,7 +981,6 @@ const AdminManagement = () => {
                 <TableRow>
                   <TableCell>Student Name</TableCell>
                   <TableCell>Roll Number</TableCell>
-                  <TableCell>Department</TableCell>
                   <TableCell>Event</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Reason</TableCell>
@@ -1022,11 +994,12 @@ const AdminManagement = () => {
               <TableBody>
                 {filteredRequests.map((request) => (
                   <TableRow key={request._id}>
-                    <TableCell>{request.student?.name || "N/A"}</TableCell>
+                    <TableCell>
+                      {request.student?.user?.name || "N/A"}
+                    </TableCell>
                     <TableCell>
                       {request.student?.registerNo || "N/A"}
                     </TableCell>
-                    <TableCell>{request.department || "N/A"}</TableCell>
                     <TableCell>{request.eventName || "N/A"}</TableCell>
                     <TableCell>
                       {request.eventDate

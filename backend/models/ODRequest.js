@@ -4,7 +4,7 @@ const odRequestSchema = new mongoose.Schema(
   {
     student: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Student",
       required: true,
     },
     classAdvisor: {
@@ -20,6 +20,7 @@ const odRequestSchema = new mongoose.Schema(
     department: {
       type: String,
       required: true,
+      default: "CSE",
     },
     year: {
       type: String,

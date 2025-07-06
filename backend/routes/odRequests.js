@@ -12,6 +12,7 @@ const {
 } = require("../middleware/authMiddleware");
 const ODRequest = require("../models/ODRequest");
 const User = require("../models/User");
+const Student = require("../models/Student"); // <-- Added
 const multer = require("multer");
 const {
   sendODRequestNotification,
@@ -126,7 +127,6 @@ router.post(
   student,
   brochureUpload.single("brochure"),
   asyncHandler(async (req, res) => {
-    console.log("REQ.BODY:", req.body); // <-- Add this line
     try {
       const {
         eventName,
@@ -141,9 +141,11 @@ router.post(
         notifyFaculty,
       } = req.body;
 
-      // Get the student's details
-      const student = await User.findById(req.user._id);
-      if (!student || !student.facultyAdvisor) {
+      // Get the student's details from Student model
+      const studentDoc = await Student.findOne({ user: req.user._id }).populate(
+        "facultyAdvisor"
+      );
+      if (!studentDoc || !studentDoc.facultyAdvisor) {
         return res
           .status(400)
           .json({ message: "Student must have a faculty advisor assigned" });
@@ -152,7 +154,6 @@ router.post(
       // Get HOD details
       const hod = await User.findOne({
         role: "hod",
-        department: student.department,
       });
       if (!hod) {
         return res
@@ -161,7 +162,7 @@ router.post(
       }
 
       const odRequest = new ODRequest({
-        student: req.user._id,
+        student: studentDoc._id, // Reference to Student, not User
         eventName,
         eventType: eventType ? String(eventType) : undefined,
         eventDate,
@@ -171,30 +172,26 @@ router.post(
         startTime: timeType === "particularHours" ? startTime : undefined,
         endTime: timeType === "particularHours" ? endTime : undefined,
         reason,
-        facultyAdvisor: student.facultyAdvisor,
-        classAdvisor: student.facultyAdvisor, // Using faculty advisor as class advisor
+        facultyAdvisor: studentDoc.facultyAdvisor._id,
+        classAdvisor: studentDoc.facultyAdvisor._id, // Using faculty advisor as class advisor
         hod: hod._id,
-        department: student.department,
-        year: student.year,
+        year: studentDoc.year,
         notifyFaculty: notifyFaculty || [],
         brochure: req.file ? req.file.path : null,
       });
 
-      console.log("eventType before save:", eventType);
       await odRequest.save();
-      console.log("odRequest object:", odRequest);
 
-      // Get faculty advisor details
-      const facultyAdvisor = await User.findById(student.facultyAdvisor);
+      // Get user details for notification
+      const user = await User.findById(req.user._id);
 
       // Send email notification to faculty advisor
       await sendODRequestNotification(
-        facultyAdvisor.email,
+        studentDoc.facultyAdvisor.email,
         {
-          name: req.user.name,
-          registerNo: req.user.registerNo,
-          department: req.user.department,
-          year: req.user.year,
+          name: user.name,
+          registerNo: studentDoc.registerNo,
+          year: studentDoc.year,
         },
         {
           eventName,
@@ -227,7 +224,16 @@ router.get(
   protect,
   student,
   asyncHandler(async (req, res) => {
-    const odRequests = await ODRequest.find({ student: req.user.id })
+    // Find the Student document for the logged-in user
+    const studentDoc = await Student.findOne({ user: req.user._id });
+    if (!studentDoc) {
+      return res.status(404).json({ message: "Student profile not found" });
+    }
+    const odRequests = await ODRequest.find({ student: studentDoc._id })
+      .populate({
+        path: "student",
+        populate: { path: "user", select: "name email" },
+      })
       .populate("classAdvisor", "name email")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
@@ -243,25 +249,23 @@ router.get(
   protect,
   faculty,
   asyncHandler(async (req, res) => {
-    console.log("Faculty Request - User:", req.user);
+    const odRequests = await ODRequest.find({ classAdvisor: req.user._id })
+      .populate({
+        path: "student",
+        populate: {
+          path: "user",
+          select: "name email"
+        }
+      })
+      .populate("classAdvisor", "name email")
+      .populate("notifyFaculty", "name email")
+      .sort({ createdAt: -1 });
 
-    try {
-      const odRequests = await ODRequest.find({ classAdvisor: req.user._id })
-        .populate("student", "name email department year")
-        .populate("notifyFaculty", "name email")
-        .sort({ createdAt: -1 });
-
-      console.log("Found requests for faculty:", odRequests.length);
-      res.json(odRequests);
-    } catch (error) {
-      console.error("Error fetching faculty requests:", error);
-      res.status(500).json({
-        message: "Error fetching requests",
-        error: error.message,
-      });
-    }
+    console.log("Fetched OD requests:", odRequests); // Debug log
+    res.json(odRequests);
   })
 );
+
 // @desc    Verify proof document
 // @route   PUT /api/od-requests/:id/verify-proof
 // @access  Private/ClassAdvisor
@@ -272,7 +276,7 @@ router.put(
   asyncHandler(async (req, res) => {
     console.log(`Attempting to verify proof for request ID: ${req.params.id}`);
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name email registerNo department year")
+      .populate("student", "name email registerNo year")
       .populate("facultyAdvisor", "name email");
 
     if (!odRequest) {
@@ -340,7 +344,6 @@ router.put(
       {
         name: odRequest.student.name,
         registerNo: odRequest.student.registerNo,
-        department: odRequest.student.department,
         year: odRequest.student.year,
       },
       {
@@ -371,7 +374,7 @@ router.get(
   faculty,
   asyncHandler(async (req, res) => {
     const odRequests = await ODRequest.find({ classAdvisor: req.user.id })
-      .populate("student", "name email department year")
+      .populate("student", "name email year")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
     res.json(odRequests);
@@ -450,18 +453,34 @@ router.post(
 // @route   GET api/od-requests/student
 // @desc    Get all OD requests for logged in student
 // @access  Private
-router.get("/student", protect, student, async (req, res) => {
+router.get("/student", protect, student, asyncHandler(async (req, res) => {
   try {
-    const odRequests = await ODRequest.find({ student: req.user.id })
+    console.log("Finding student document for user:", req.user._id);
+    // First find the Student document for the logged-in user
+    const studentDoc = await Student.findOne({ user: req.user._id });
+    
+    if (!studentDoc) {
+      console.log("No student document found for user:", req.user._id);
+      return res.status(404).json({ message: "Student profile not found" });
+    }
+
+    console.log("Found student document:", studentDoc._id);
+    const odRequests = await ODRequest.find({ student: studentDoc._id })
       .populate("classAdvisor", "name email")
       .populate("notifyFaculty", "name email")
+      .populate("hod", "name email")
       .sort({ createdAt: -1 });
+    
+    console.log("Found OD requests:", odRequests.length);
     res.json(odRequests);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
+    console.error("Error in /student route:", err);
+    res.status(500).json({
+      message: "Error fetching requests",
+      error: err.message
+    });
   }
-});
+}));
 
 // @route   GET api/od-requests/advisor
 // @desc    Get all OD requests for logged in faculty (class advisor)
@@ -486,22 +505,20 @@ router.get(
   protect,
   hod,
   asyncHandler(async (req, res) => {
-    try {
-      // Fetch all OD requests for the HOD's department
-      const odRequests = await ODRequest.find({
-        department: req.user.department,
+    const odRequests = await ODRequest.find()
+      .populate({
+        path: "student",
+        populate: {
+          path: "user",
+          select: "name email"
+        }
       })
-        .populate("student", "name email registerNo")
-        .populate("classAdvisor", "name email")
-        .populate("notifyFaculty", "name email")
-        .sort({ createdAt: -1 });
-      res.json(odRequests);
-    } catch (error) {
-      res.status(500).json({
-        message: "Error fetching requests",
-        error: error.message,
-      });
-    }
+      .populate("classAdvisor", "name email")
+      .populate("notifyFaculty", "name email")
+      .sort({ createdAt: -1 });
+
+    console.log("Fetched OD requests for HOD:", odRequests); // Debug log
+    res.json(odRequests);
   })
 );
 
@@ -515,7 +532,7 @@ router.put(
   asyncHandler(async (req, res) => {
     const { status, remarks } = req.body;
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo department year")
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name")
       .populate("hod", "name")
       .populate("notifyFaculty", "name email");
@@ -523,12 +540,6 @@ router.put(
     if (!odRequest) {
       res.status(404);
       throw new Error("OD request not found");
-    }
-
-    // Check if the user is an HOD in the student's department
-    if (req.user.department !== odRequest.student.department.toString()) {
-      res.status(401);
-      throw new Error("Not authorized to approve requests for this department");
     }
 
     // Preserve the existing facultyAdvisor
@@ -568,7 +579,7 @@ router.put(
   hod,
   asyncHandler(async (req, res) => {
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo department year")
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name")
       .populate("hod", "name")
       .populate("notifyFaculty", "name email");
@@ -581,16 +592,11 @@ router.put(
     }
 
     if (
-      req.user.role !== "hod" ||
-      req.user.department !== odRequest.department
+      req.user.role !== "hod" 
     ) {
       console.error(
         "HOD authorization failed. User Role:",
-        req.user.role,
-        "User Department:",
-        req.user.department,
-        "Request Department:",
-        odRequest.department
+        req.user.role
       );
       res.status(403);
       throw new Error("Not authorized as HOD for this department");
@@ -619,7 +625,7 @@ router.get(
   student,
   asyncHandler(async (req, res) => {
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo department year")
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name")
       .populate("hod", "name");
 
@@ -726,7 +732,7 @@ router.get(
 
     drawTableRowContent(
       doc,
-      [`${itemCounter++}. Department:`, odRequest.student.department],
+      [`${itemCounter++}. Department:`, "Computer Science Engineering"],
       studentDetailsCellWidths,
       studentDetailsStartX,
       studentDetailsCurrentY,
@@ -1063,7 +1069,7 @@ router.get(
   student,
   asyncHandler(async (req, res) => {
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo department year")
+      .populate("student")
       .populate("classAdvisor", "name")
       .populate("hod", "name");
 
@@ -1169,7 +1175,7 @@ router.get(
 
     // Then fetch all relevant requests
     const odRequests = await ODRequest.find(query)
-      .populate("student", "name email department year registerNo")
+      .populate("student", "name email year registerNo")
       .populate("classAdvisor", "name email")
       .populate("hod", "name email")
       .sort({ lastStatusChangeAt: -1 });
@@ -1274,8 +1280,13 @@ router.get(
   protect,
   faculty,
   asyncHandler(async (req, res) => {
-    const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo department year")
+    const odRequest = await ODRequest.findById(req.params.id).populate({
+      path: "student",
+      populate: {
+        path: "user",
+        select: "name email"
+      }
+    })
       .populate("classAdvisor", "name")
       .populate("hod", "name");
 
@@ -1305,7 +1316,7 @@ router.get(
     doc.moveDown();
     doc.fontSize(12).text(`Student Name: ${odRequest.student.name}`);
     doc.text(`Register Number: ${odRequest.student.registerNo}`);
-    doc.text(`Department: ${odRequest.student.department}`);
+    doc.text(`Department: Computer Science Engineering`);
     doc.text(`Year: ${odRequest.student.year}`);
     doc.moveDown();
     doc.text(`Event Name: ${odRequest.eventName}`);
@@ -1344,7 +1355,7 @@ const generateODLetterPDF = async (odRequest, outputPath) => {
     doc.moveDown();
     doc.fontSize(12).text(`Student Name: ${odRequest.student.name}`);
     doc.text(`Register Number: ${odRequest.student.registerNo}`);
-    doc.text(`Department: ${odRequest.student.department}`);
+    doc.text(`Department: Computer Science Engineering`);
     doc.text(`Year: ${odRequest.student.year}`);
     // Add this line for event type
     doc.text(`Event Type: ${odRequest.eventType}`);
@@ -1408,8 +1419,13 @@ router.get(
       throw new Error("Not authorized as admin");
     }
 
-    const odRequests = await ODRequest.find()
-      .populate("student", "name email department year registerNo")
+    const odRequests = await ODRequest.find().populate({
+      path: "student",
+      populate: {
+        path: "user",
+        select: "name email"
+      }
+    })
       .populate("classAdvisor", "name email")
       .populate("hod", "name email")
       .sort({ createdAt: -1 });
@@ -1493,7 +1509,7 @@ const generateApprovedPDF = async (odRequest, outputPath) => {
     // Student + Purpose Details
     drawLabeledRow("Name:", odRequest.student.name);
     drawLabeledRow("Register Number:", odRequest.student.registerNo || "N/A");
-    drawLabeledRow("Department:", odRequest.student.department);
+    drawLabeledRow("Department:", "Computer Science Enginnering");
     drawLabeledRow("Year:", odRequest.student.year);
     drawLabeledRow("Event Type:", odRequest.eventType);
     drawLabeledRow("Event Name:", odRequest.eventName);

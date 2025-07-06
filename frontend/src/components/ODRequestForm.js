@@ -125,11 +125,12 @@ const ODRequestForm = () => {
     }
   };
 
+  // Modify handleSubmit function
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-
+  
     // Frontend validation for required fields
     if (
       !formData.eventName ||
@@ -142,7 +143,7 @@ const ODRequestForm = () => {
       setError("Please fill all required fields.");
       return;
     }
-
+  
     try {
       const form = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
@@ -153,7 +154,9 @@ const ODRequestForm = () => {
       if (brochureFile) {
         form.append("brochure", brochureFile);
       }
-      form.append("classAdvisor", user.facultyAdvisor);
+      // Only append faculty advisor ID
+      form.append("facultyAdvisor", user?.student?.facultyAdvisor?._id || "");
+      
       const response = await axios.post(
         "http://localhost:5000/api/od-requests",
         form,

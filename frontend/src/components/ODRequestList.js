@@ -52,30 +52,48 @@ const ODRequestList = () => {
 
   const fetchRequests = async () => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("No authentication token found. Please login again.");
+        return;
+      }
+
       const res = await axios.get(
         "http://localhost:5000/api/od-requests/student",
         {
           headers: {
-            "x-auth-token": localStorage.getItem("token"),
+            Authorization: `Bearer ${token}`,
           },
         }
       );
+      console.log("Fetched requests:", res.data); // Debug log
       setRequests(res.data);
     } catch (err) {
-      setError("Error fetching requests");
+      console.error("Error fetching requests:", err);
+      setError(err.response?.data?.message || "Error fetching requests");
     }
   };
 
   const fetchFacultyList = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/users/faculty', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("No authentication token found. Please login again.");
+        return;
+      }
+
+      const response = await axios.get(
+        "http://localhost:5000/api/users/faculty",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      });
+      );
       setFacultyList(response.data);
     } catch (error) {
-      console.error('Error fetching faculty list:', error);
+      console.error("Error fetching faculty list:", error);
+      setError("Failed to fetch faculty list");
     }
   };
 
@@ -87,7 +105,10 @@ const ODRequestList = () => {
 
     const formData = new FormData();
     formData.append("proofDocument", proofFile);
-    formData.append("notifyFaculty", JSON.stringify(selectedFaculty.map(f => f._id)));
+    formData.append(
+      "notifyFaculty",
+      JSON.stringify(selectedFaculty.map((f) => f._id))
+    );
 
     try {
       const response = await axios.put(
@@ -95,52 +116,60 @@ const ODRequestList = () => {
         formData,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'multipart/form-data'
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
 
-      setRequests(requests.map(req => 
-        req._id === response.data._id ? response.data : req
-      ));
+      setRequests(
+        requests.map((req) =>
+          req._id === response.data._id ? response.data : req
+        )
+      );
       setProofDialogOpen(false);
       setProofFile(null);
       setSelectedFaculty([]);
     } catch (error) {
-      console.error('Error submitting proof:', error);
+      console.error("Error submitting proof:", error);
     }
   };
 
   const handleDownloadPDF = async (requestId) => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Authentication token not found. Please login again.");
+        return;
+      }
+  
       const response = await axios.get(
         `http://localhost:5000/api/od-requests/${requestId}/download-approved-pdf`,
         {
           headers: {
-            "x-auth-token": localStorage.getItem("token"),
+            Authorization: `Bearer ${token}`,
           },
-          responseType: 'blob'
+          responseType: "blob",
         }
       );
-
+  
       // Create a blob from the PDF data
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      
+  
       // Create a temporary link element and trigger the download
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', `od_request_${requestId}.pdf`);
+      link.setAttribute("download", `od_request_${requestId}.pdf`);
       document.body.appendChild(link);
       link.click();
-      
+  
       // Clean up
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError("Error downloading PDF");
       console.error("Error downloading PDF:", err);
+      setError(err.response?.data?.message || "Error downloading PDF");
     }
   };
 
@@ -157,31 +186,47 @@ const ODRequestList = () => {
     }
   };
 
+  // Update the handleSubmitProof function
   const handleSubmitProof = async (e) => {
     e.preventDefault();
+    if (!selectedFile) {
+      setError("Please select a file");
+      return;
+    }
+  
     const formData = new FormData();
-    formData.append('proofDocument', selectedFile);
-    formData.append('notifyFaculty', JSON.stringify(selectedFaculty.map(f => f._id)));
-
+    formData.append("proofDocument", selectedFile);
+    formData.append(
+      "notifyFaculty",
+      JSON.stringify(selectedFaculty.map((f) => f._id))
+    );
+  
     try {
-      await axios.post(
-        `http://localhost:5000/api/od-requests/${selectedRequest._id}/submit-proof`,
+      const token = localStorage.getItem("token");
+      const response = await axios.put(
+        `http://localhost:5000/api/od-requests/${selectedRequest._id}/proof`,
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
-      setSuccess('Proof submitted successfully');
+  
+      setSuccess("Proof submitted successfully");
+      setRequests(
+        requests.map((req) =>
+          req._id === response.data._id ? response.data : req
+        )
+      );
       handleCloseProofDialog();
       fetchRequests();
     } catch (error) {
-      setError(error.response?.data?.message || 'Error submitting proof');
+      console.error("Error submitting proof:", error);
+      setError(error.response?.data?.message || "Error submitting proof");
     }
   };
-
   const handleCloseProofDialog = () => {
     setProofDialogOpen(false);
     setProofFile(null);
@@ -265,14 +310,22 @@ const ODRequestList = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    {getProofVerificationChip(request.proofSubmitted, request.proofVerified)}
+                    {getProofVerificationChip(
+                      request.proofSubmitted,
+                      request.proofVerified
+                    )}
                   </TableCell>
                   <TableCell>
                     {request.brochure && (
                       <Button
                         variant="outlined"
                         size="small"
-                        onClick={() => window.open(`http://localhost:5000/${request.brochure}`, '_blank')}
+                        onClick={() =>
+                          window.open(
+                            `http://localhost:5000/${request.brochure}`,
+                            "_blank"
+                          )
+                        }
                         sx={{ ml: 1 }}
                       >
                         View Brochure
@@ -280,40 +333,41 @@ const ODRequestList = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    {request.status === "approved_by_hod" && !request.proofSubmitted && (
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setProofDialogOpen(true);
-                        }}
-                      >
-                        Submit Proof
-                      </Button>
-                    )}
-                    {(request.status === "approved_by_hod" || request.status === "rejected") && (
-                      <Button
-                        variant="contained"
-                        color="secondary"
-                        size="small"
-                        onClick={() => handleDownloadPDF(request._id)}
-                        startIcon={<DownloadIcon />}
-                      >
-                        Download PDF
-                      </Button>
-                    )}
-                    {request.proofDocument && (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleViewProof(request.proofDocument)}
-                        sx={{ ml: 1 }}
-                      >
-                        View Proof
-                      </Button>
-                    )}
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      {request.status === "approved_by_hod" && !request.proofSubmitted && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setProofDialogOpen(true);
+                          }}
+                        >
+                          Submit Proof
+                        </Button>
+                      )}
+                      {request.status === "approved_by_hod" && (
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          size="small"
+                          onClick={() => handleDownloadPDF(request._id)}
+                          startIcon={<DownloadIcon />}
+                        >
+                          Download PDF
+                        </Button>
+                      )}
+                      {request.proofDocument && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleViewProof(request.proofDocument)}
+                        >
+                          View Proof
+                        </Button>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))}
@@ -334,12 +388,13 @@ const ODRequestList = () => {
                 type="file"
                 accept=".pdf,application/pdf"
                 onChange={handleFileChange}
-                style={{ marginBottom: '1rem' }}
+                style={{ marginBottom: "1rem" }}
               />
+              // Modify the Autocomplete component in the proof submission dialog
               <Autocomplete
                 multiple
                 options={facultyList}
-                getOptionLabel={(option) => `${option.name} (${option.department})`}
+                getOptionLabel={(option) => option.name}
                 value={selectedFaculty}
                 onChange={(event, newValue) => {
                   setSelectedFaculty(newValue);
@@ -357,7 +412,11 @@ const ODRequestList = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseProofDialog}>Cancel</Button>
-            <Button onClick={handleSubmitProof} variant="contained" color="primary">
+            <Button
+              onClick={handleSubmitProof}
+              variant="contained"
+              color="primary"
+            >
               Submit
             </Button>
           </DialogActions>
@@ -372,25 +431,29 @@ const ODRequestList = () => {
           <DialogTitle>View Proof Document</DialogTitle>
           <DialogContent>
             {selectedRequest?.proofDocument && (
-              <Box sx={{ 
-                width: '100%', 
-                height: '80vh', 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center',
-                bgcolor: '#f5f5f5',
-                borderRadius: 1,
-                p: 2
-              }}>
-                {selectedRequest.proofDocument.toLowerCase().endsWith('.pdf') ? (
+              <Box
+                sx={{
+                  width: "100%",
+                  height: "80vh",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  bgcolor: "#f5f5f5",
+                  borderRadius: 1,
+                  p: 2,
+                }}
+              >
+                {selectedRequest.proofDocument
+                  .toLowerCase()
+                  .endsWith(".pdf") ? (
                   <iframe
                     src={`http://localhost:5000/${selectedRequest.proofDocument}`}
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      border: 'none',
-                      borderRadius: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                      borderRadius: "4px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                     }}
                     title="Proof Document"
                   />
@@ -399,11 +462,11 @@ const ODRequestList = () => {
                     src={`http://localhost:5000/${selectedRequest.proofDocument}`}
                     alt="Proof Document"
                     style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain',
-                      borderRadius: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                      borderRadius: "4px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                     }}
                   />
                 )}

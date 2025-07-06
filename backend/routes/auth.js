@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { protect } = require("../middleware/authMiddleware");
 const User = require("../models/User");
+const Student = require("../models/Student"); // Add this at the top
 const asyncHandler = require("express-async-handler");
 
 // @route   GET api/auth/me
@@ -35,7 +36,7 @@ router.post(
 
       let user = await User.findOne({ email });
       console.log("User found:", user ? "Yes" : "No");
-      
+
       if (!user) {
         res.status(400);
         throw new Error("No user found with this email");
@@ -43,7 +44,7 @@ router.post(
 
       const isMatch = await bcrypt.compare(password, user.password);
       console.log("Password match:", isMatch ? "Yes" : "No");
-      
+
       if (!isMatch) {
         res.status(400);
         throw new Error("Invalid password");
@@ -62,7 +63,7 @@ router.post(
       );
 
       console.log("Login successful for user:", user.email);
-      
+
       res.json({
         token,
         user: {
@@ -86,10 +87,8 @@ router.post(
 router.post(
   "/register",
   asyncHandler(async (req, res) => {
-    const { name, email, password, role, department, year, facultyAdvisor, registerNo } =
+    const { name, email, password, role, year, facultyAdvisor, registerNo } =
       req.body;
-
-    console.log("Register request body:", req.body);
 
     // Validate required fields
     if (!name || !email || !password || !role) {
@@ -97,32 +96,27 @@ router.post(
       throw new Error("Please fill in all required fields");
     }
 
-    // Validate role-specific fields
-    if (["student", "faculty", "hod"].includes(role) && !department) {
+    // Check if user already exists
+    let user = await User.findOne({ email });
+    if (user) {
       res.status(400);
-      throw new Error("Department is required for this role");
+      throw new Error("User already exists");
     }
 
+    // For students, validate and create Student document
+    let student = null;
     if (role === "student") {
-      if (!year) {
+      if (!year || !registerNo || !facultyAdvisor) {
         res.status(400);
-        throw new Error("Year is required for students");
+        throw new Error("All student fields are required");
       }
-      if (!registerNo) {
-        res.status(400);
-        throw new Error("Register Number is required for students");
-      }
-      // Check if register number already exists for student
-      const existingStudent = await User.findOne({ registerNo, role: "student" });
+      // Check if register number already exists
+      const existingStudent = await Student.findOne({ registerNo });
       if (existingStudent) {
         res.status(400);
         throw new Error("Student with this Register Number already exists");
       }
-      if (!facultyAdvisor) {
-        res.status(400);
-        throw new Error("Faculty advisor is required for students");
-      }
-      // Verify that the faculty advisor exists and is a faculty member
+      // Verify faculty advisor exists and is a faculty
       const advisor = await User.findOne({
         _id: facultyAdvisor,
         role: "faculty",
@@ -133,39 +127,39 @@ router.post(
       }
     }
 
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      res.status(400);
-      throw new Error("User already exists");
-    }
-
     // Create user
     user = await User.create({
       name,
       email,
       password,
-      registerNo: role === "student" ? registerNo : undefined,
       role,
-      department,
-      year,
-      facultyAdvisor: role === "student" ? facultyAdvisor : undefined,
+      userId: email, // or however you want to generate userId
     });
 
-    if (user) {
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        year: user.year,
-        facultyAdvisor: user.facultyAdvisor,
+    // If student, create Student document
+    if (role === "student") {
+      student = await Student.create({
+        user: user._id,
+        registerNo,
+        year,
+        facultyAdvisor,
       });
-    } else {
-      res.status(400);
-      throw new Error("Invalid user data");
     }
+
+    // Respond
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      ...(student && {
+        student: {
+          registerNo: student.registerNo,
+          year: student.year,
+          facultyAdvisor: student.facultyAdvisor,
+        },
+      }),
+    });
   })
 );
 

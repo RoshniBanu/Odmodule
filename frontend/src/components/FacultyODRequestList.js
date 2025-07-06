@@ -46,36 +46,23 @@ const FacultyODRequestList = () => {
         setError("Authentication token not found. Please login again.");
         return;
       }
-
+  
       const res = await axios.get(
         "http://localhost:5000/api/od-requests/faculty",
         {
           headers: {
-            "x-auth-token": token,
+            Authorization: `Bearer ${token}`
           },
         }
       );
-
+  
       console.log("Faculty requests response:", res.data);
-      if (Array.isArray(res.data)) {
+      if (res.data) {
         setRequests(res.data);
-        setError("");
-      } else {
-        console.error("Invalid response format:", res.data);
-        setError("Invalid response format from server");
       }
     } catch (err) {
       console.error("Error fetching requests:", err);
-      if (err.response) {
-        console.error("Error response:", err.response.data);
-        setError(err.response.data.message || "Error fetching requests");
-      } else if (err.request) {
-        console.error("No response received:", err.request);
-        setError("No response from server. Please check your connection.");
-      } else {
-        console.error("Error setting up request:", err.message);
-        setError("Error setting up request: " + err.message);
-      }
+      setError(err.response?.data?.message || "Error fetching requests");
     }
   };
 
@@ -211,7 +198,6 @@ const FacultyODRequestList = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Student Name</TableCell>
-                <TableCell>Department</TableCell>
                 <TableCell>Year</TableCell>
                 <TableCell>Event Name</TableCell>
                 <TableCell>Event Date</TableCell>
@@ -224,21 +210,31 @@ const FacultyODRequestList = () => {
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
+            
+           
             <TableBody>
               {requests.map((request) => (
                 <TableRow key={request._id}>
-                  <TableCell>{request.student.name}</TableCell>
-                  <TableCell>{request.department}</TableCell>
-                  <TableCell>{request.year}</TableCell>
+                  <TableCell>
+                    {request.student?.user?.name || request.student?.name || "N/A"}
+                  </TableCell>
+                  <TableCell>{request.student?.year || "N/A"}</TableCell>
+
                   <TableCell>{request.eventName}</TableCell>
                   <TableCell>
-                    {new Date(request.eventDate).toLocaleDateString()}
+                    {request.eventDate
+                      ? new Date(request.eventDate).toLocaleDateString()
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
-                    {new Date(request.startDate).toLocaleDateString()}
+                    {request.startDate
+                      ? new Date(request.startDate).toLocaleDateString()
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
-                    {new Date(request.endDate).toLocaleDateString()}
+                    {request.endDate
+                      ? new Date(request.endDate).toLocaleDateString()
+                      : "N/A"}
                   </TableCell>
                   <TableCell>{request.reason}</TableCell>
                   <TableCell>{getStatusChip(request.status)}</TableCell>
@@ -246,7 +242,11 @@ const FacultyODRequestList = () => {
                     {request.proofSubmitted ? (
                       getProofVerificationChip(request.proofVerified)
                     ) : (
-                      <Chip label="NOT SUBMITTED" color="default" size="small" />
+                      <Chip
+                        label="NOT SUBMITTED"
+                        color="default"
+                        size="small"
+                      />
                     )}
                   </TableCell>
                   <TableCell>
@@ -254,7 +254,12 @@ const FacultyODRequestList = () => {
                       <Button
                         variant="outlined"
                         size="small"
-                        onClick={() => window.open(`http://localhost:5000/${request.brochure}`, '_blank')}
+                        onClick={() =>
+                          window.open(
+                            `http://localhost:5000/${request.brochure}`,
+                            "_blank"
+                          )
+                        }
                         sx={{ ml: 1 }}
                       >
                         View Brochure
@@ -263,7 +268,7 @@ const FacultyODRequestList = () => {
                   </TableCell>
                   <TableCell>
                     {request.status === "pending" && (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Box sx={{ display: "flex", gap: 1 }}>
                         <Button
                           variant="contained"
                           color="success"
@@ -283,14 +288,16 @@ const FacultyODRequestList = () => {
                       </Box>
                     )}
                     {request.proofSubmitted && (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Box sx={{ display: "flex", gap: 1 }}>
                         {!request.proofVerified && (
                           <>
                             <Button
                               variant="contained"
                               color="success"
                               size="small"
-                              onClick={() => handleProofVerification(request._id, true)}
+                              onClick={() =>
+                                handleProofVerification(request._id, true)
+                              }
                             >
                               Verify Proof
                             </Button>
@@ -298,7 +305,9 @@ const FacultyODRequestList = () => {
                               variant="contained"
                               color="error"
                               size="small"
-                              onClick={() => handleProofVerification(request._id, false)}
+                              onClick={() =>
+                                handleProofVerification(request._id, false)
+                              }
                             >
                               Reject Proof
                             </Button>
@@ -346,9 +355,7 @@ const FacultyODRequestList = () => {
         </DialogActions>
       </Dialog>
 
-      <>
-        {/* This dialog was causing issues and has been removed */}
-      </>
+      <>{/* This dialog was causing issues and has been removed */}</>
 
       <Dialog
         open={viewProofDialogOpen}
@@ -359,25 +366,27 @@ const FacultyODRequestList = () => {
         <DialogTitle>View Proof Document</DialogTitle>
         <DialogContent>
           {selectedRequest?.proofDocument && (
-            <Box sx={{ 
-              width: '100%', 
-              height: '80vh', 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              bgcolor: '#f5f5f5',
-              borderRadius: 1,
-              p: 2
-            }}>
-              {selectedRequest.proofDocument.toLowerCase().endsWith('.pdf') ? (
+            <Box
+              sx={{
+                width: "100%",
+                height: "80vh",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                bgcolor: "#f5f5f5",
+                borderRadius: 1,
+                p: 2,
+              }}
+            >
+              {selectedRequest.proofDocument.toLowerCase().endsWith(".pdf") ? (
                 <iframe
                   src={`http://localhost:5000/${selectedRequest.proofDocument}`}
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    borderRadius: "4px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                   }}
                   title="Proof Document"
                 />
@@ -386,11 +395,11 @@ const FacultyODRequestList = () => {
                   src={`http://localhost:5000/${selectedRequest.proofDocument}`}
                   alt="Proof Document"
                   style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                    borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    objectFit: "contain",
+                    borderRadius: "4px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                   }}
                 />
               )}
