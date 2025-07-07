@@ -263,9 +263,16 @@ const AdminManagement = () => {
     // Student Name
     if (
       filterStudent &&
-      !request.student?.user?.name
-        ?.toLowerCase()
-        .includes(filterStudent.toLowerCase())
+      !(
+        (request.student?.user?.name &&
+          request.student.user.name
+            .toLowerCase()
+            .includes(filterStudent.toLowerCase())) ||
+        (request.student?.name &&
+          request.student.name
+            .toLowerCase()
+            .includes(filterStudent.toLowerCase()))
+      )
     ) {
       return false;
     }
@@ -282,7 +289,7 @@ const AdminManagement = () => {
     if (filterEventType && request.eventType !== filterEventType) {
       return false;
     }
-    
+
     // Year Level (dropdown)
     if (
       filterYearLevel &&
@@ -972,22 +979,22 @@ const AdminManagement = () => {
             />
           </Grid>
           <Grid item xs={12} md={2}>
-          <TextField
-            select
-            fullWidth
-            variant="outlined"
-            label="Event Type"
-            value={filterEventType}
-            onChange={(e) => setFilterEventType(e.target.value)}
-          >
-            <MenuItem value="">All Event Types</MenuItem>
-            {eventTypes.map((et) => (
-              <MenuItem key={et} value={et}>
-                {et.charAt(0).toUpperCase() + et.slice(1)}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
+            <TextField
+              select
+              fullWidth
+              variant="outlined"
+              label="Event Type"
+              value={filterEventType}
+              onChange={(e) => setFilterEventType(e.target.value)}
+            >
+              <MenuItem value="">All Event Types</MenuItem>
+              {eventTypes.map((et) => (
+                <MenuItem key={et} value={et}>
+                  {et.charAt(0).toUpperCase() + et.slice(1)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
           <Grid item xs={12} md={2}>
             <Button
               fullWidth
@@ -1023,9 +1030,7 @@ const AdminManagement = () => {
               <TableBody>
                 {filteredRequests.map((request) => (
                   <TableRow key={request._id}>
-                    <TableCell>
-                      {request.student?.name || "N/A"}
-                    </TableCell>
+                    <TableCell>{request.student?.name || "N/A"}</TableCell>
                     <TableCell>
                       {request.student?.registerNo || "N/A"}
                     </TableCell>

@@ -46,16 +46,16 @@ const FacultyODRequestList = () => {
         setError("Authentication token not found. Please login again.");
         return;
       }
-  
+
       const res = await axios.get(
         "http://localhost:5000/api/od-requests/faculty",
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
           },
         }
       );
-  
+
       console.log("Faculty requests response:", res.data);
       if (res.data) {
         setRequests(res.data);
@@ -167,12 +167,14 @@ const FacultyODRequestList = () => {
     setViewProofDialogOpen(true);
   };
 
-  const getProofVerificationChip = (verified) => {
-    return verified ? (
-      <Chip label="VERIFIED" color="success" size="small" />
-    ) : (
-      <Chip label="NOT VERIFIED" color="error" size="small" />
-    );
+  const getProofVerificationChip = (proofVerified, proofRejected) => {
+    if (proofRejected) {
+      return <Chip label="REJECTED" color="error" size="small" />;
+    } else if (proofVerified) {
+      return <Chip label="VERIFIED" color="success" size="small" />;
+    } else {
+      return <Chip label="PENDING" color="warning" size="small" />;
+    }
   };
 
   return (
@@ -211,13 +213,14 @@ const FacultyODRequestList = () => {
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
-            
-           
+
             <TableBody>
               {requests.map((request) => (
                 <TableRow key={request._id}>
                   <TableCell>
-                    {request.student?.user?.name || request.student?.name || "N/A"}
+                    {request.student?.user?.name ||
+                      request.student?.name ||
+                      "N/A"}
                   </TableCell>
                   <TableCell>{request.student?.year || "N/A"}</TableCell>
 
@@ -242,7 +245,10 @@ const FacultyODRequestList = () => {
                   <TableCell>{getStatusChip(request.status)}</TableCell>
                   <TableCell>
                     {request.proofSubmitted ? (
-                      getProofVerificationChip(request.proofVerified)
+                      getProofVerificationChip(
+                        request.proofVerified,
+                        request.proofRejected
+                      )
                     ) : (
                       <Chip
                         label="NOT SUBMITTED"
@@ -291,7 +297,7 @@ const FacultyODRequestList = () => {
                     )}
                     {request.proofSubmitted && (
                       <Box sx={{ display: "flex", gap: 1 }}>
-                        {!request.proofVerified && (
+                        {!(request.proofVerified || request.proofRejected) && (
                           <>
                             <Button
                               variant="contained"

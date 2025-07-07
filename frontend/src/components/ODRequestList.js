@@ -40,9 +40,15 @@ const ODRequestList = () => {
     fetchFacultyList();
   }, []);
 
-  const getProofVerificationChip = (proofSubmitted, proofVerified) => {
+  const getProofVerificationChip = (
+    proofSubmitted,
+    proofVerified,
+    proofRejected
+  ) => {
     if (!proofSubmitted) {
       return <Chip label="NOT SUBMITTED" color="default" size="small" />;
+    } else if (proofRejected) {
+      return <Chip label="PROOF REJECTED" color="error" size="small" />;
     } else if (proofVerified) {
       return <Chip label="VERIFIED" color="success" size="small" />;
     } else {
@@ -312,7 +318,8 @@ const ODRequestList = () => {
                   <TableCell>
                     {getProofVerificationChip(
                       request.proofSubmitted,
-                      request.proofVerified
+                      request.proofVerified,
+                      request.proofRejected
                     )}
                   </TableCell>
                   <TableCell>

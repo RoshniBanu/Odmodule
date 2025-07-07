@@ -31,9 +31,15 @@ const HODDashboard = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const getProofVerificationChip = (proofSubmitted, proofVerified) => {
+  const getProofVerificationChip = (
+    proofSubmitted,
+    proofVerified,
+    proofRejected
+  ) => {
     if (!proofSubmitted) {
       return <Chip label="NOT SUBMITTED" color="default" size="small" />;
+    } else if (proofRejected) {
+      return <Chip label="PROOF REJECTED" color="error" size="small" />;
     } else if (proofVerified) {
       return <Chip label="VERIFIED" color="success" size="small" />;
     } else {
@@ -53,7 +59,7 @@ const HODDashboard = () => {
 
       const res = await axios.get("http://localhost:5000/api/od-requests/hod", {
         headers: {
-          Authorization: `Bearer ${token}` // Changed from x-auth-token to Bearer token
+          Authorization: `Bearer ${token}`, // Changed from x-auth-token to Bearer token
         },
       });
 
@@ -121,7 +127,7 @@ const HODDashboard = () => {
         requestBody,
         {
           headers: {
-            Authorization: `Bearer ${token}` // Changed from x-auth-token to Bearer token
+            Authorization: `Bearer ${token}`, // Changed from x-auth-token to Bearer token
           },
         }
       );
@@ -202,11 +208,11 @@ const HODDashboard = () => {
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
-            
+
             <TableBody>
               {requests.map((request) => (
                 <TableRow key={request._id}>
-                  <TableCell>{request.student?.name || "N/A"}</TableCell>  
+                  <TableCell>{request.student?.name || "N/A"}</TableCell>
                   <TableCell>{request.student?.year || "N/A"}</TableCell>
                   <TableCell>{request.eventName}</TableCell>
                   <TableCell>{request.eventType}</TableCell>
@@ -231,7 +237,8 @@ const HODDashboard = () => {
                   <TableCell>
                     {getProofVerificationChip(
                       request.proofSubmitted,
-                      request.proofVerified
+                      request.proofVerified,
+                      request.proofRejected
                     )}
                   </TableCell>
                   <TableCell>

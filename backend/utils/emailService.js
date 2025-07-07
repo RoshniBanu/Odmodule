@@ -96,7 +96,8 @@ const sendProofVerificationNotification = async (
   studentDetails,
   odDetails,
   proofDocumentPath,
-  approvedPDFPath
+  approvedPDFPath,
+  status // 'verified' or 'rejected'
 ) => {
   if (!facultyEmails || facultyEmails.length === 0) {
     console.log("No faculty members to notify");
@@ -118,8 +119,8 @@ const sendProofVerificationNotification = async (
       });
     }
 
-    // Add approved PDF if it exists
-    if (approvedPDFPath && fs.existsSync(path.resolve(approvedPDFPath))) {
+    // Add approved PDF if it exists and status is verified
+    if (status === 'verified' && approvedPDFPath && fs.existsSync(path.resolve(approvedPDFPath))) {
       const approvedExt = path.extname(approvedPDFPath).toLowerCase();
       const approvedName = path.basename(approvedPDFPath, approvedExt);
       attachments.push({
@@ -128,22 +129,22 @@ const sendProofVerificationNotification = async (
       });
     }
 
+    const isVerified = status === 'verified';
     const mailOptions = {
       from: email,
       to: facultyEmails.join(","),
-      subject: "OD Request Proof Verification Notification",
+      subject: `OD Request Proof ${isVerified ? 'Verified' : 'Rejected'} Notification`,
       html: `
-        <h2>OD Request Proof Verification Notification</h2>
-        <p>A student's OD request proof has been verified.</p>
+        <h2>OD Request Proof ${isVerified ? 'Verified' : 'Rejected'} Notification</h2>
+        <p>A student's OD request proof has been <strong>${isVerified ? 'verified' : 'rejected'}</strong>.</p>
         
         <h3>Student Details:</h3>
         <p>Name: ${studentDetails.name}</p>
         <p>Register Number: ${studentDetails.registerNo}</p>
-        <p>Department: ${studentDetails.department}</p>
+        <p>Department: ${studentDetails.department || ''}</p>
         <p>Year: ${studentDetails.year}</p>
         
         <h3>Event Details:</h3>
-        <p>Event Details:</p>
         <p>Event Name: ${odDetails.eventName}</p>
         <p>Event Type: ${odDetails.eventType}</p>
         <p>Event Date: ${new Date(odDetails.eventDate).toLocaleDateString()}</p>
@@ -162,17 +163,17 @@ const sendProofVerificationNotification = async (
         <p>Please find attached:</p>
         <ul>
           <li>The student's submitted proof document</li>
-          <li>The approved OD form with verification details</li>
+          ${isVerified ? '<li>The approved OD form with verification details</li>' : ''}
         </ul>
       `,
       attachments,
     };
 
     await transporter.sendMail(mailOptions);
-    console.log("Proof verification notification emails sent successfully");
+    console.log(`Proof ${isVerified ? 'verification' : 'rejection'} notification emails sent successfully`);
   } catch (error) {
     console.error(
-      "Error sending proof verification notification emails:",
+      `Error sending proof ${status} notification emails:`,
       error
     );
     throw error;
