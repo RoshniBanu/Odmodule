@@ -111,8 +111,8 @@ const ODRequestList = () => {
     );
 
     try {
-      const response = await axios.put(
-        `http://localhost:5000/api/od-requests/${selectedRequest._id}/proof`,
+      const response = await axios.post(
+        `http://localhost:5000/api/od-requests/${selectedRequest._id}/submit-proof`,
         formData,
         {
           headers: {
@@ -142,7 +142,7 @@ const ODRequestList = () => {
         setError("Authentication token not found. Please login again.");
         return;
       }
-  
+
       const response = await axios.get(
         `http://localhost:5000/api/od-requests/${requestId}/download-approved-pdf`,
         {
@@ -152,18 +152,18 @@ const ODRequestList = () => {
           responseType: "blob",
         }
       );
-  
+
       // Create a blob from the PDF data
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-  
+
       // Create a temporary link element and trigger the download
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `od_request_${requestId}.pdf`);
       document.body.appendChild(link);
       link.click();
-  
+
       // Clean up
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
@@ -193,18 +193,18 @@ const ODRequestList = () => {
       setError("Please select a file");
       return;
     }
-  
+
     const formData = new FormData();
     formData.append("proofDocument", selectedFile);
     formData.append(
       "notifyFaculty",
       JSON.stringify(selectedFaculty.map((f) => f._id))
     );
-  
+
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.put(
-        `http://localhost:5000/api/od-requests/${selectedRequest._id}/proof`,
+      const response = await axios.post(
+        `http://localhost:5000/api/od-requests/${selectedRequest._id}/submit-proof`,
         formData,
         {
           headers: {
@@ -213,7 +213,7 @@ const ODRequestList = () => {
           },
         }
       );
-  
+
       setSuccess("Proof submitted successfully");
       setRequests(
         requests.map((req) =>
@@ -333,20 +333,21 @@ const ODRequestList = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {request.status === "approved_by_hod" && !request.proofSubmitted && (
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          size="small"
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setProofDialogOpen(true);
-                          }}
-                        >
-                          Submit Proof
-                        </Button>
-                      )}
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      {request.status === "approved_by_hod" &&
+                        !request.proofSubmitted && (
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setProofDialogOpen(true);
+                            }}
+                          >
+                            Submit Proof
+                          </Button>
+                        )}
                       {request.status === "approved_by_hod" && (
                         <Button
                           variant="contained"
@@ -390,7 +391,8 @@ const ODRequestList = () => {
                 onChange={handleFileChange}
                 style={{ marginBottom: "1rem" }}
               />
-              // Modify the Autocomplete component in the proof submission dialog
+              // Modify the Autocomplete component in the proof submission
+              dialog
               <Autocomplete
                 multiple
                 options={facultyList}

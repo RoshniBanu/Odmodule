@@ -11,8 +11,10 @@
     "@reduxjs/toolkit": "^1.9.5",
     "axios": "^1.4.0",
     "chart.js": "^4.4.9",
+    "cors": "^2.8.5",
     "date-fns": "^2.30.0",
     "dayjs": "^1.11.13",
+    "express": "^5.1.0",
     "file-saver": "^2.0.5",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
@@ -48,5 +50,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }

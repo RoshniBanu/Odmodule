@@ -134,12 +134,13 @@ router.post(
       password,
       role,
       userId: email, // or however you want to generate userId
+      ...(role === "student" && { registerNo }),
     });
 
     // If student, create Student document
     if (role === "student") {
       student = await Student.create({
-        user: user._id,
+        name,
         registerNo,
         year,
         facultyAdvisor,

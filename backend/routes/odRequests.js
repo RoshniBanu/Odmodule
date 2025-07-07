@@ -142,9 +142,9 @@ router.post(
       } = req.body;
 
       // Get the student's details from Student model
-      const studentDoc = await Student.findOne({ user: req.user._id }).populate(
-        "facultyAdvisor"
-      );
+      const studentDoc = await Student.findOne({
+        registerNo: req.user.registerNo,
+      }).populate("facultyAdvisor");
       if (!studentDoc || !studentDoc.facultyAdvisor) {
         return res
           .status(400)
@@ -225,15 +225,14 @@ router.get(
   student,
   asyncHandler(async (req, res) => {
     // Find the Student document for the logged-in user
-    const studentDoc = await Student.findOne({ user: req.user._id });
+    const studentDoc = await Student.findOne({
+      registerNo: req.user.registerNo,
+    });
     if (!studentDoc) {
       return res.status(404).json({ message: "Student profile not found" });
     }
     const odRequests = await ODRequest.find({ student: studentDoc._id })
-      .populate({
-        path: "student",
-        populate: { path: "user", select: "name email" },
-      })
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name email")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
@@ -250,13 +249,7 @@ router.get(
   faculty,
   asyncHandler(async (req, res) => {
     const odRequests = await ODRequest.find({ classAdvisor: req.user._id })
-      .populate({
-        path: "student",
-        populate: {
-          path: "user",
-          select: "name email"
-        }
-      })
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name email")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
@@ -276,7 +269,7 @@ router.put(
   asyncHandler(async (req, res) => {
     console.log(`Attempting to verify proof for request ID: ${req.params.id}`);
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name email registerNo year")
+      .populate("student", "name registerNo year")
       .populate("facultyAdvisor", "name email");
 
     if (!odRequest) {
@@ -286,9 +279,19 @@ router.put(
     }
 
     // Check if the user is the class advisor
-    if (odRequest.classAdvisor.toString() !== req.user.id.toString()) {
+    const classAdvisorId =
+      odRequest.classAdvisor && odRequest.classAdvisor._id
+        ? odRequest.classAdvisor._id.toString()
+        : odRequest.classAdvisor
+        ? odRequest.classAdvisor.toString()
+        : null;
+    if (
+      !classAdvisorId ||
+      !req.user.id ||
+      classAdvisorId !== req.user.id.toString()
+    ) {
       res.status(401);
-      throw new Error("Not authorized");
+      throw new Error("Not authorized: classAdvisor missing or mismatch");
     }
 
     // Check if proof has been submitted
@@ -374,7 +377,7 @@ router.get(
   faculty,
   asyncHandler(async (req, res) => {
     const odRequests = await ODRequest.find({ classAdvisor: req.user.id })
-      .populate("student", "name email year")
+      .populate("student", "name registerNo year")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
     res.json(odRequests);
@@ -398,7 +401,17 @@ router.put(
     }
 
     // Check if the user is the class advisor
-    if (odRequest.classAdvisor.toString() !== req.user.id.toString()) {
+    const classAdvisorId =
+      odRequest.classAdvisor && odRequest.classAdvisor._id
+        ? odRequest.classAdvisor._id.toString()
+        : odRequest.classAdvisor
+        ? odRequest.classAdvisor.toString()
+        : null;
+    if (
+      !classAdvisorId ||
+      !req.user.id ||
+      classAdvisorId !== req.user.id.toString()
+    ) {
       res.status(401);
       throw new Error("Not authorized");
     }
@@ -422,14 +435,16 @@ router.post(
   student,
   upload.single("proofDocument"),
   asyncHandler(async (req, res) => {
-    const odRequest = await ODRequest.findById(req.params.id);
+    const odRequest = await ODRequest.findById(req.params.id)
+      .populate("student", "name registerNo year")
+      .populate("notifyFaculty", "email name");
 
     if (!odRequest) {
       res.status(404);
       throw new Error("OD request not found");
     }
 
-    if (odRequest.student.toString() !== req.user._id.toString()) {
+    if (odRequest.student.registerNo !== req.user.registerNo) {
       res.status(403);
       throw new Error("Not authorized to submit proof for this request");
     }
@@ -446,6 +461,38 @@ router.post(
     }
     await odRequest.save();
 
+    // Send email to faculties after proof submission
+    try {
+      const facultyEmails = (odRequest.notifyFaculty || [])
+        .map((f) => f.email)
+        .filter(Boolean);
+      await sendProofVerificationNotification(
+        facultyEmails,
+        {
+          name: odRequest.student.name,
+          registerNo: odRequest.student.registerNo,
+          department: odRequest.department,
+          year: odRequest.year,
+        },
+        {
+          eventName: odRequest.eventName,
+          eventType: odRequest.eventType,
+          eventDate: odRequest.eventDate,
+          startDate: odRequest.startDate,
+          endDate: odRequest.endDate,
+          timeType: odRequest.timeType,
+          startTime: odRequest.startTime,
+          endTime: odRequest.endTime,
+          reason: odRequest.reason,
+        },
+        odRequest.proofDocument,
+        odRequest.approvedPDFPath
+      );
+    } catch (emailErr) {
+      console.error("Error sending proof verification email:", emailErr);
+      // Don't block the response if email fails
+    }
+
     res.json({ message: "Proof document submitted successfully" });
   })
 );
@@ -453,34 +500,41 @@ router.post(
 // @route   GET api/od-requests/student
 // @desc    Get all OD requests for logged in student
 // @access  Private
-router.get("/student", protect, student, asyncHandler(async (req, res) => {
-  try {
-    console.log("Finding student document for user:", req.user._id);
-    // First find the Student document for the logged-in user
-    const studentDoc = await Student.findOne({ user: req.user._id });
-    
-    if (!studentDoc) {
-      console.log("No student document found for user:", req.user._id);
-      return res.status(404).json({ message: "Student profile not found" });
-    }
+router.get(
+  "/student",
+  protect,
+  student,
+  asyncHandler(async (req, res) => {
+    try {
+      console.log("Finding student document for user:", req.user._id);
+      // First find the Student document for the logged-in user
+      const studentDoc = await Student.findOne({
+        registerNo: req.user.registerNo,
+      });
 
-    console.log("Found student document:", studentDoc._id);
-    const odRequests = await ODRequest.find({ student: studentDoc._id })
-      .populate("classAdvisor", "name email")
-      .populate("notifyFaculty", "name email")
-      .populate("hod", "name email")
-      .sort({ createdAt: -1 });
-    
-    console.log("Found OD requests:", odRequests.length);
-    res.json(odRequests);
-  } catch (err) {
-    console.error("Error in /student route:", err);
-    res.status(500).json({
-      message: "Error fetching requests",
-      error: err.message
-    });
-  }
-}));
+      if (!studentDoc) {
+        console.log("No student document found for user:", req.user._id);
+        return res.status(404).json({ message: "Student profile not found" });
+      }
+
+      console.log("Found student document:", studentDoc._id);
+      const odRequests = await ODRequest.find({ student: studentDoc._id })
+        .populate("student", "name registerNo year")
+        .populate("classAdvisor", "name email")
+        .populate("notifyFaculty", "name email")
+        .sort({ createdAt: -1 });
+
+      console.log("Found OD requests:", odRequests.length);
+      res.json(odRequests);
+    } catch (err) {
+      console.error("Error in /student route:", err);
+      res.status(500).json({
+        message: "Error fetching requests",
+        error: err.message,
+      });
+    }
+  })
+);
 
 // @route   GET api/od-requests/advisor
 // @desc    Get all OD requests for logged in faculty (class advisor)
@@ -488,7 +542,7 @@ router.get("/student", protect, student, asyncHandler(async (req, res) => {
 router.get("/advisor", protect, faculty, async (req, res) => {
   try {
     const requests = await ODRequest.find({ classAdvisor: req.user.id })
-      .populate("student", "name email")
+      .populate("student", "name registerNo year")
       .sort({ createdAt: -1 });
     res.json(requests);
   } catch (err) {
@@ -506,13 +560,7 @@ router.get(
   hod,
   asyncHandler(async (req, res) => {
     const odRequests = await ODRequest.find()
-      .populate({
-        path: "student",
-        populate: {
-          path: "user",
-          select: "name email"
-        }
-      })
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name email")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
@@ -591,13 +639,8 @@ router.put(
       throw new Error("OD request not found");
     }
 
-    if (
-      req.user.role !== "hod" 
-    ) {
-      console.error(
-        "HOD authorization failed. User Role:",
-        req.user.role
-      );
+    if (req.user.role !== "hod") {
+      console.error("HOD authorization failed. User Role:", req.user.role);
       res.status(403);
       throw new Error("Not authorized as HOD for this department");
     }
@@ -1069,7 +1112,7 @@ router.get(
   student,
   asyncHandler(async (req, res) => {
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student")
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name")
       .populate("hod", "name");
 
@@ -1078,14 +1121,17 @@ router.get(
       throw new Error("OD request not found");
     }
 
-    // Check if the request is approved
-    if (odRequest.status !== "approved_by_hod") {
+    // Allow download for both approved and rejected requests
+    if (
+      odRequest.status !== "approved_by_hod" &&
+      odRequest.status !== "rejected"
+    ) {
       res.status(400);
-      throw new Error("Only approved requests can be downloaded");
+      throw new Error("Only approved or rejected requests can be downloaded");
     }
 
     // Check if the user is the student who created the request
-    if (odRequest.student._id.toString() !== req.user.id.toString()) {
+    if (odRequest.student.registerNo !== req.user.registerNo) {
       res.status(401);
       throw new Error("Not authorized to download this request");
     }
@@ -1175,7 +1221,7 @@ router.get(
 
     // Then fetch all relevant requests
     const odRequests = await ODRequest.find(query)
-      .populate("student", "name email year registerNo")
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name email")
       .populate("hod", "name email")
       .sort({ lastStatusChangeAt: -1 });
@@ -1280,13 +1326,8 @@ router.get(
   protect,
   faculty,
   asyncHandler(async (req, res) => {
-    const odRequest = await ODRequest.findById(req.params.id).populate({
-      path: "student",
-      populate: {
-        path: "user",
-        select: "name email"
-      }
-    })
+    const odRequest = await ODRequest.findById(req.params.id)
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name")
       .populate("hod", "name");
 
@@ -1419,13 +1460,8 @@ router.get(
       throw new Error("Not authorized as admin");
     }
 
-    const odRequests = await ODRequest.find().populate({
-      path: "student",
-      populate: {
-        path: "user",
-        select: "name email"
-      }
-    })
+    const odRequests = await ODRequest.find()
+      .populate("student", "name registerNo year")
       .populate("classAdvisor", "name email")
       .populate("hod", "name email")
       .sort({ createdAt: -1 });

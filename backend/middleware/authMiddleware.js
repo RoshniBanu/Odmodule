@@ -36,8 +36,11 @@ const protect = asyncHandler(async (req, res, next) => {
       throw new Error("User not found");
     }
 
-    console.log("Authenticated user:", user);
-    req.user = user;
+    // Attach registerNo for students
+    req.user = user.toObject();
+    if (user.role === "student") {
+      req.user.registerNo = user.registerNo;
+    }
     next();
   } catch (error) {
     console.error("Token verification error:", error);

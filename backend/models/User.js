@@ -26,6 +26,15 @@ const userSchema = new mongoose.Schema(
       enum: ["student", "faculty", "hod", "admin"],
       required: true,
     },
+    registerNo: {
+      type: String,
+      required: function () {
+        return this.role === "student";
+      },
+      unique: function () {
+        return this.role === "student";
+      },
+    },
   },
   {
     timestamps: true,
