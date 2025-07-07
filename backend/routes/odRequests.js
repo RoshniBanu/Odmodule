@@ -262,111 +262,99 @@ router.get(
 // @desc    Verify proof document
 // @route   PUT /api/od-requests/:id/verify-proof
 // @access  Private/ClassAdvisor
-router.put(
-  "/:id/verify-proof",
-  protect,
-  faculty,
-  asyncHandler(async (req, res) => {
-    console.log(`Attempting to verify proof for request ID: ${req.params.id}`);
-    const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo year")
-      .populate("facultyAdvisor", "name email");
-
-    if (!odRequest) {
-      console.log(`OD Request with ID ${req.params.id} not found.`);
-      res.status(404);
-      throw new Error("OD request not found");
-    }
-
-    // Check if the user is the class advisor
-    const classAdvisorId =
-      odRequest.classAdvisor && odRequest.classAdvisor._id
-        ? odRequest.classAdvisor._id.toString()
-        : odRequest.classAdvisor
-        ? odRequest.classAdvisor.toString()
-        : null;
-    if (
-      !classAdvisorId ||
-      !req.user.id ||
-      classAdvisorId !== req.user.id.toString()
-    ) {
-      res.status(401);
-      throw new Error("Not authorized: classAdvisor missing or mismatch");
-    }
-
-    // Check if proof has been submitted
-    if (!odRequest.proofSubmitted) {
-      res.status(400);
-      throw new Error("No proof document submitted yet");
-    }
-
-    odRequest.proofVerified = true;
-    odRequest.updatedAt = Date.now();
-
-    const updatedRequest = await odRequest.save();
-
-    // Check if approved PDF already exists, if not generate it
-    let approvedPDFPath = updatedRequest.approvedPDFPath;
-    const expectedApprovedPath = path.resolve(
-      "uploads/od_letters",
-      `approved_${updatedRequest._id}.pdf`
-    );
-
-    // Check if the stored path exists, or if the expected file exists on disk
-    if (!approvedPDFPath || !fs.existsSync(approvedPDFPath)) {
-      if (fs.existsSync(expectedApprovedPath)) {
-        // File exists on disk but not in database, use it and update database
-        approvedPDFPath = expectedApprovedPath;
-        updatedRequest.approvedPDFPath = approvedPDFPath;
-        await updatedRequest.save();
-      } else {
-        // File doesn't exist, generate new one
-        approvedPDFPath = expectedApprovedPath;
-        await generateApprovedPDF(updatedRequest, approvedPDFPath);
-
-        // Save the path to the database
-        updatedRequest.approvedPDFPath = approvedPDFPath;
-        await updatedRequest.save();
+  // @access Private/ClassAdvisor
+  router.put(
+    "/:id/verify-proof",
+    protect,
+    faculty,
+    asyncHandler(async (req, res) => {
+      const { verified } = req.body;
+  
+      console.log(`Attempting to ${verified ? "verify" : "reject"} proof for request ID: ${req.params.id}`);
+  
+      const odRequest = await ODRequest.findById(req.params.id)
+        .populate("student", "name registerNo year")
+        .populate("facultyAdvisor", "name email");
+  
+      if (!odRequest) {
+        res.status(404);
+        throw new Error("OD request not found");
       }
-    }
-
-    // Send email notification to faculty (class advisor and optionally notifyFaculty)
-    const facultyEmails = [odRequest.facultyAdvisor.email];
-    if (odRequest.notifyFaculty && odRequest.notifyFaculty.length > 0) {
-      const notifiedFacultyEmails = await User.find({
-        _id: { $in: odRequest.notifyFaculty },
-      }).select("email");
-      facultyEmails.push(...notifiedFacultyEmails.map((f) => f.email));
-    }
-
-    // Fallback for eventType if missing
-    const eventTypeToSend = odRequest.eventType || "Unknown";
-
-    await sendProofVerificationNotification(
-      facultyEmails,
-      {
-        name: odRequest.student.name,
-        registerNo: odRequest.student.registerNo,
-        year: odRequest.student.year,
-      },
-      {
-        eventName: odRequest.eventName,
-        eventType: eventTypeToSend,
-        eventDate: odRequest.eventDate,
-        startDate: odRequest.startDate,
-        endDate: odRequest.endDate,
-        timeType: odRequest.timeType,
-        startTime: odRequest.startTime,
-        endTime: odRequest.endTime,
-        reason: odRequest.reason,
-      },
-      odRequest.proofDocument,
-      approvedPDFPath
-    );
-
-    res.json(updatedRequest);
-  })
-);
+  
+      const facultyAdvisorId = odRequest.facultyAdvisor?._id?.toString();
+      if (!facultyAdvisorId || facultyAdvisorId !== req.user.id) {
+        res.status(401);
+        throw new Error("Not authorized: Only facultyAdvisor can verify/reject proof");
+      }
+  
+      if (!odRequest.proofSubmitted) {
+        res.status(400);
+        throw new Error("No proof document submitted yet");
+      }
+  
+      // Set proofVerified only if verified is true, else false
+      odRequest.proofVerified = verified === true;
+      odRequest.updatedAt = Date.now();
+      const updatedRequest = await odRequest.save();
+  
+      if (verified) {
+        let approvedPDFPath = updatedRequest.approvedPDFPath;
+        const expectedApprovedPath = path.resolve(
+          "uploads/od_letters",
+          `approved_${updatedRequest._id}.pdf`
+        );
+  
+        if (!approvedPDFPath || !fs.existsSync(approvedPDFPath)) {
+          if (fs.existsSync(expectedApprovedPath)) {
+            approvedPDFPath = expectedApprovedPath;
+            updatedRequest.approvedPDFPath = approvedPDFPath;
+            await updatedRequest.save();
+          } else {
+            approvedPDFPath = expectedApprovedPath;
+            await generateApprovedPDF(updatedRequest, approvedPDFPath);
+            updatedRequest.approvedPDFPath = approvedPDFPath;
+            await updatedRequest.save();
+          }
+        }
+  
+        const facultyEmails = [odRequest.facultyAdvisor.email];
+        if (odRequest.notifyFaculty?.length) {
+          const notifiedFacultyEmails = await User.find({
+            _id: { $in: odRequest.notifyFaculty },
+          }).select("email");
+          facultyEmails.push(...notifiedFacultyEmails.map((f) => f.email));
+        }
+  
+        const eventTypeToSend = odRequest.eventType || "Unknown";
+  
+        await sendProofVerificationNotification(
+          facultyEmails,
+          {
+            name: odRequest.student.name,
+            registerNo: odRequest.student.registerNo,
+            year: odRequest.student.year,
+          },
+          {
+            eventName: odRequest.eventName,
+            eventType: eventTypeToSend,
+            eventDate: odRequest.eventDate,
+            startDate: odRequest.startDate,
+            endDate: odRequest.endDate,
+            timeType: odRequest.timeType,
+            startTime: odRequest.startTime,
+            endTime: odRequest.endTime,
+            reason: odRequest.reason,
+          },
+          odRequest.proofDocument,
+          approvedPDFPath
+        );
+      }
+  
+      // Do NOT send email if proof is rejected (verified === false)
+  
+      res.json(updatedRequest);
+    })
+  );
 
 // @desc    Get all OD requests for a class advisor
 // @route   GET /api/od-requests/advisor-requests

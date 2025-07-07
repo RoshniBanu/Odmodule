@@ -147,7 +147,7 @@ const FacultyODRequestList = () => {
         { verified },
         {
           headers: {
-            "x-auth-token": localStorage.getItem("token"),
+            Authorization: `Bearer ${localStorage.getItem("token")}`, // Changed header to Bearer token
           },
         }
       );
@@ -200,6 +200,7 @@ const FacultyODRequestList = () => {
                 <TableCell>Student Name</TableCell>
                 <TableCell>Year</TableCell>
                 <TableCell>Event Name</TableCell>
+                <TableCell>Event Type</TableCell>
                 <TableCell>Event Date</TableCell>
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
@@ -221,6 +222,7 @@ const FacultyODRequestList = () => {
                   <TableCell>{request.student?.year || "N/A"}</TableCell>
 
                   <TableCell>{request.eventName}</TableCell>
+                  <TableCell>{request.eventType}</TableCell>
                   <TableCell>
                     {request.eventDate
                       ? new Date(request.eventDate).toLocaleDateString()

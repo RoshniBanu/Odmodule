@@ -17,8 +17,6 @@ import { useAuth } from "../contexts/AuthContext";
 import axios from "axios";
 
 const Register = () => {
-  // Modify initial formData state
-  // Update initial formData state to include department
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -161,8 +159,6 @@ const Register = () => {
               required
             />
           )}
-          // Remove department-related conditional rendering
-          // Update the student registration form section
           {formData.role === "student" && (
             <>
               <TextField
@@ -174,21 +170,15 @@ const Register = () => {
                 margin="normal"
                 required
               />
-              <FormControl fullWidth margin="normal" required>
-                <InputLabel>Department</InputLabel>
-                <Select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  label="Department"
-                >
-                  <MenuItem value="CSE">Computer Science and Engineering</MenuItem>
-                  <MenuItem value="ECE">Electronics and Communication Engineering</MenuItem>
-                  <MenuItem value="EEE">Electrical and Electronics Engineering</MenuItem>
-                  <MenuItem value="MECH">Mechanical Engineering</MenuItem>
-                  <MenuItem value="CIVIL">Civil Engineering</MenuItem>
-                </Select>
-              </FormControl>
+              <TextField
+                fullWidth
+                label="Department"
+                name="department"
+                value="Computer Science and Engineering"
+                margin="normal"
+                required
+              />
+
               <TextField
                 fullWidth
                 label="Year"

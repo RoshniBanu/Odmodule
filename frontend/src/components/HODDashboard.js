@@ -190,6 +190,7 @@ const HODDashboard = () => {
                 <TableCell>Student Name</TableCell>
                 <TableCell>Year</TableCell>
                 <TableCell>Event Name</TableCell>
+                <TableCell>Event Type</TableCell>
                 <TableCell>Event Date</TableCell>
                 <TableCell>Start Date</TableCell>
                 <TableCell>End Date</TableCell>
@@ -205,9 +206,10 @@ const HODDashboard = () => {
             <TableBody>
               {requests.map((request) => (
                 <TableRow key={request._id}>
-                  <TableCell>{request.student?.user?.name || "N/A"}</TableCell>
+                  <TableCell>{request.student?.name || "N/A"}</TableCell>  
                   <TableCell>{request.student?.year || "N/A"}</TableCell>
                   <TableCell>{request.eventName}</TableCell>
+                  <TableCell>{request.eventType}</TableCell>
                   <TableCell>
                     {request.eventDate
                       ? new Date(request.eventDate).toLocaleDateString()

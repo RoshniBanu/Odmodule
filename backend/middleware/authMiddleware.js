@@ -5,12 +5,9 @@ const asyncHandler = require("express-async-handler");
 const protect = asyncHandler(async (req, res, next) => {
   let token;
 
-  // Check for x-auth-token in headers first (from local storage)
   if (req.header("x-auth-token")) {
     token = req.header("x-auth-token");
-  }
-  // Otherwise, check for Authorization: Bearer token (if frontend uses this)
-  else if (
+  } else if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
   ) {
@@ -24,11 +21,9 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("Decoded token:", decoded);
 
-    // Get user from the token
     const user = await User.findById(decoded.id).select("-password");
     if (!user) {
       console.log("User not found for token");
@@ -36,11 +31,15 @@ const protect = asyncHandler(async (req, res, next) => {
       throw new Error("User not found");
     }
 
-    // Attach registerNo for students
-    req.user = user.toObject();
+    req.user = {
+      ...user.toObject(),
+      id: user._id.toString(), // Ensure id is present for later comparisons
+    };
+
     if (user.role === "student") {
       req.user.registerNo = user.registerNo;
     }
+
     next();
   } catch (error) {
     console.error("Token verification error:", error);

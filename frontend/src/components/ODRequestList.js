@@ -391,8 +391,6 @@ const ODRequestList = () => {
                 onChange={handleFileChange}
                 style={{ marginBottom: "1rem" }}
               />
-              // Modify the Autocomplete component in the proof submission
-              dialog
               <Autocomplete
                 multiple
                 options={facultyList}

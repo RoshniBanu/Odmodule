@@ -73,11 +73,12 @@ const AdminManagement = () => {
   // New filter states
   const [filterStudent, setFilterStudent] = useState("");
   const [filterRegno, setFilterRegno] = useState("");
-  const [filterYear, setFilterYear] = useState("");
   const [filterAcademicYear, setFilterAcademicYear] = useState("");
   const [filterEvent, setFilterEvent] = useState("");
+  const [filterYear, setFilterYear] = useState("");
   // Add new filter states for 1st/2nd/3rd/4th year
   const [filterYearLevel, setFilterYearLevel] = useState("");
+  const [filterEventType, setFilterEventType] = useState("");
   const [academicYearRange, setAcademicYearRange] = useState([null, null]);
 
   const [eventTypeRequests, setEventTypeRequests] = useState([]);
@@ -100,7 +101,8 @@ const AdminManagement = () => {
   const allColumns = [
     { label: "Student Name", key: "studentName" },
     { label: "Roll Number", key: "rollNumber" },
-    { label: "Event", key: "eventName" },
+    { label: "Event Name", key: "eventName" },
+    { label: "Event Type", key: "eventType" },
     { label: "Date", key: "eventDate" },
     { label: "Reason", key: "reason" },
     { label: "Faculty Advisor", key: "facultyAdvisor" },
@@ -276,6 +278,11 @@ const AdminManagement = () => {
     ) {
       return false;
     }
+    // Event Type
+    if (filterEventType && request.eventType !== filterEventType) {
+      return false;
+    }
+    
     // Year Level (dropdown)
     if (
       filterYearLevel &&
@@ -507,13 +514,16 @@ const AdminManagement = () => {
         if (!selectedColumns.includes(col.key)) return;
         switch (col.key) {
           case "studentName":
-            row[col.label] = request.student?.user?.name || "N/A";
+            row[col.label] = request.student?.name || "N/A";
             break;
           case "rollNumber":
             row[col.label] = request.student?.registerNo || "N/A";
             break;
           case "eventName":
             row[col.label] = request.eventName || "N/A";
+            break;
+          case "eventType":
+            row[col.label] = request.eventType || "N/A";
             break;
           case "eventDate":
             row[col.label] = request.eventDate
@@ -606,6 +616,7 @@ const AdminManagement = () => {
     setFilterYearLevel("");
     setFilterAcademicYear("");
     setFilterEvent("");
+    setFilterEventType("");
     setAcademicYearRange([null, null]);
   };
 
@@ -961,6 +972,23 @@ const AdminManagement = () => {
             />
           </Grid>
           <Grid item xs={12} md={2}>
+          <TextField
+            select
+            fullWidth
+            variant="outlined"
+            label="Event Type"
+            value={filterEventType}
+            onChange={(e) => setFilterEventType(e.target.value)}
+          >
+            <MenuItem value="">All Event Types</MenuItem>
+            {eventTypes.map((et) => (
+              <MenuItem key={et} value={et}>
+                {et.charAt(0).toUpperCase() + et.slice(1)}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Grid>
+          <Grid item xs={12} md={2}>
             <Button
               fullWidth
               variant="outlined"
@@ -981,7 +1009,8 @@ const AdminManagement = () => {
                 <TableRow>
                   <TableCell>Student Name</TableCell>
                   <TableCell>Roll Number</TableCell>
-                  <TableCell>Event</TableCell>
+                  <TableCell>Event Name</TableCell>
+                  <TableCell>Event Type</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Reason</TableCell>
                   <TableCell>Faculty Advisor</TableCell>
@@ -995,12 +1024,13 @@ const AdminManagement = () => {
                 {filteredRequests.map((request) => (
                   <TableRow key={request._id}>
                     <TableCell>
-                      {request.student?.user?.name || "N/A"}
+                      {request.student?.name || "N/A"}
                     </TableCell>
                     <TableCell>
                       {request.student?.registerNo || "N/A"}
                     </TableCell>
                     <TableCell>{request.eventName || "N/A"}</TableCell>
+                    <TableCell>{request.eventType || "N/A"}</TableCell>
                     <TableCell>
                       {request.eventDate
                         ? new Date(request.eventDate).toLocaleDateString()

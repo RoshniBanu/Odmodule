@@ -107,6 +107,10 @@ const odRequestSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    proofRejected: { 
+      type: Boolean, 
+      default: false 
+    }, // true = rejected
     remarks: {
       type: String,
       default: "",
