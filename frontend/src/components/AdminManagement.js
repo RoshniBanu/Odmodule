@@ -46,6 +46,7 @@ import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import Contributors from './Contributors';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, ChartTooltip, Legend, Title);
@@ -758,7 +759,7 @@ const AdminManagement = () => {
   }
 
   return (
-    <>
+    <Box display="flex" flexDirection="column" minHeight="100vh">
       <Box p={3}>
         <Typography variant="h4" gutterBottom>
           Admin Management
@@ -1317,7 +1318,16 @@ const AdminManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+      <Box sx={{ marginTop: 'auto', mb: 2 }}>
+        <Contributors images={[
+          'Abhijith M.jpg',
+          'Roshni Banu S.jpg',
+          'Deepak R.jpg',
+          'Divapriya B.jpg',
+          'Kavya Sri V.jpg'
+        ]} />
+      </Box>
+    </Box>
   );
 };
 

@@ -27,6 +27,7 @@ import {
   Visibility as VisibilityIcon,
 } from "@mui/icons-material";
 import axios from "axios";
+import Contributors from './Contributors';
 
 const FacultyODRequestList = () => {
   const [requests, setRequests] = useState([]);
@@ -178,247 +179,258 @@ const FacultyODRequestList = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Faculty Dashboard
-        </Typography>
+    <Box display="flex" flexDirection="column" minHeight="100vh">
+      <Container maxWidth="lg" sx={{ flex: 1 }}>
+        <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
+          <Typography variant="h4" gutterBottom>
+            Faculty Dashboard
+          </Typography>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {success}
-          </Alert>
-        )}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          )}
 
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Student Name</TableCell>
-                <TableCell>Year</TableCell>
-                <TableCell>Event Name</TableCell>
-                <TableCell>Event Type</TableCell>
-                <TableCell>Event Date</TableCell>
-                <TableCell>Start Date</TableCell>
-                <TableCell>End Date</TableCell>
-                <TableCell>Reason</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Proof Verification Status</TableCell>
-                <TableCell>Brochure</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Student Name</TableCell>
+                  <TableCell>Year</TableCell>
+                  <TableCell>Event Name</TableCell>
+                  <TableCell>Event Type</TableCell>
+                  <TableCell>Event Date</TableCell>
+                  <TableCell>Start Date</TableCell>
+                  <TableCell>End Date</TableCell>
+                  <TableCell>Reason</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Proof Verification Status</TableCell>
+                  <TableCell>Brochure</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
 
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request._id}>
-                  <TableCell>
-                    {request.student?.user?.name ||
-                      request.student?.name ||
-                      "N/A"}
-                  </TableCell>
-                  <TableCell>{request.student?.year || "N/A"}</TableCell>
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request._id}>
+                    <TableCell>
+                      {request.student?.user?.name ||
+                        request.student?.name ||
+                        "N/A"}
+                    </TableCell>
+                    <TableCell>{request.student?.year || "N/A"}</TableCell>
 
-                  <TableCell>{request.eventName}</TableCell>
-                  <TableCell>{request.eventType}</TableCell>
-                  <TableCell>
-                    {request.eventDate
-                      ? new Date(request.eventDate).toLocaleDateString()
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {request.startDate
-                      ? new Date(request.startDate).toLocaleDateString()
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {request.endDate
-                      ? new Date(request.endDate).toLocaleDateString()
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>{request.reason}</TableCell>
-                  <TableCell>{getStatusChip(request.status)}</TableCell>
-                  <TableCell>
-                    {request.proofSubmitted ? (
-                      getProofVerificationChip(
-                        request.proofVerified,
-                        request.proofRejected
-                      )
-                    ) : (
-                      <Chip
-                        label="NOT SUBMITTED"
-                        color="default"
-                        size="small"
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {request.brochure && (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() =>
-                          window.open(
-                            `http://localhost:5000/${request.brochure}`,
-                            "_blank"
-                          )
-                        }
-                        sx={{ ml: 1 }}
-                      >
-                        View Brochure
-                      </Button>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {request.status === "pending" && (
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Button
-                          variant="contained"
-                          color="success"
+                    <TableCell>{request.eventName}</TableCell>
+                    <TableCell>{request.eventType}</TableCell>
+                    <TableCell>
+                      {request.eventDate
+                        ? new Date(request.eventDate).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {request.startDate
+                        ? new Date(request.startDate).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {request.endDate
+                        ? new Date(request.endDate).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>{request.reason}</TableCell>
+                    <TableCell>{getStatusChip(request.status)}</TableCell>
+                    <TableCell>
+                      {request.proofSubmitted ? (
+                        getProofVerificationChip(
+                          request.proofVerified,
+                          request.proofRejected
+                        )
+                      ) : (
+                        <Chip
+                          label="NOT SUBMITTED"
+                          color="default"
                           size="small"
-                          onClick={() => handleApprove(request._id)}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="error"
-                          size="small"
-                          onClick={() => handleReject(request._id)}
-                        >
-                          Reject
-                        </Button>
-                      </Box>
-                    )}
-                    {request.proofSubmitted && (
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        {!(request.proofVerified || request.proofRejected) && (
-                          <>
-                            <Button
-                              variant="contained"
-                              color="success"
-                              size="small"
-                              onClick={() =>
-                                handleProofVerification(request._id, true)
-                              }
-                            >
-                              Verify Proof
-                            </Button>
-                            <Button
-                              variant="contained"
-                              color="error"
-                              size="small"
-                              onClick={() =>
-                                handleProofVerification(request._id, false)
-                              }
-                            >
-                              Reject Proof
-                            </Button>
-                          </>
-                        )}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {request.brochure && (
                         <Button
                           variant="outlined"
                           size="small"
-                          onClick={() => handleViewProof(request.proofDocument)}
+                          onClick={() =>
+                            window.open(
+                              `http://localhost:5000/${request.brochure}`,
+                              "_blank"
+                            )
+                          }
+                          sx={{ ml: 1 }}
                         >
-                          View Proof
+                          View Brochure
                         </Button>
-                      </Box>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {request.status === "pending" && (
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                            onClick={() => handleApprove(request._id)}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            onClick={() => handleReject(request._id)}
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      )}
+                      {request.proofSubmitted && (
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          {!(request.proofVerified || request.proofRejected) && (
+                            <>
+                              <Button
+                                variant="contained"
+                                color="success"
+                                size="small"
+                                onClick={() =>
+                                  handleProofVerification(request._id, true)
+                                }
+                              >
+                                Verify Proof
+                              </Button>
+                              <Button
+                                variant="contained"
+                                color="error"
+                                size="small"
+                                onClick={() =>
+                                  handleProofVerification(request._id, false)
+                                }
+                              >
+                                Reject Proof
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleViewProof(request.proofDocument)}
+                          >
+                            View Proof
+                          </Button>
+                        </Box>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
 
-      <Dialog open={openDialog} onClose={handleDialogClose}>
-        <DialogTitle>Add Comment</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Comment"
-            fullWidth
-            multiline
-            rows={4}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogClose}>Cancel</Button>
-          <Button
-            onClick={handleSubmit}
-            color={action === "approve" ? "success" : "error"}
-          >
-            {action === "approve" ? "Approve" : "Reject"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <>{/* This dialog was causing issues and has been removed */}</>
-
-      <Dialog
-        open={viewProofDialogOpen}
-        onClose={() => setViewProofDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>View Proof Document</DialogTitle>
-        <DialogContent>
-          {selectedRequest?.proofDocument && (
-            <Box
-              sx={{
-                width: "100%",
-                height: "80vh",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                bgcolor: "#f5f5f5",
-                borderRadius: 1,
-                p: 2,
-              }}
+        <Dialog open={openDialog} onClose={handleDialogClose}>
+          <DialogTitle>Add Comment</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Comment"
+              fullWidth
+              multiline
+              rows={4}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDialogClose}>Cancel</Button>
+            <Button
+              onClick={handleSubmit}
+              color={action === "approve" ? "success" : "error"}
             >
-              {selectedRequest.proofDocument.toLowerCase().endsWith(".pdf") ? (
-                <iframe
-                  src={`http://localhost:5000/${selectedRequest.proofDocument}`}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    border: "none",
-                    borderRadius: "4px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                  }}
-                  title="Proof Document"
-                />
-              ) : (
-                <img
-                  src={`http://localhost:5000/${selectedRequest.proofDocument}`}
-                  alt="Proof Document"
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    objectFit: "contain",
-                    borderRadius: "4px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                  }}
-                />
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setViewProofDialogOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+              {action === "approve" ? "Approve" : "Reject"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <>{/* This dialog was causing issues and has been removed */}</>
+
+        <Dialog
+          open={viewProofDialogOpen}
+          onClose={() => setViewProofDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>View Proof Document</DialogTitle>
+          <DialogContent>
+            {selectedRequest?.proofDocument && (
+              <Box
+                sx={{
+                  width: "100%",
+                  height: "80vh",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  bgcolor: "#f5f5f5",
+                  borderRadius: 1,
+                  p: 2,
+                }}
+              >
+                {selectedRequest.proofDocument.toLowerCase().endsWith(".pdf") ? (
+                  <iframe
+                    src={`http://localhost:5000/${selectedRequest.proofDocument}`}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                      borderRadius: "4px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    }}
+                    title="Proof Document"
+                  />
+                ) : (
+                  <img
+                    src={`http://localhost:5000/${selectedRequest.proofDocument}`}
+                    alt="Proof Document"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                      borderRadius: "4px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setViewProofDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+      <Box sx={{ marginTop: 'auto', mb: 2 }}>
+        <Contributors images={[
+          'Abhijith M.jpg',
+          'Roshni Banu S.jpg',
+          'Deepak R.jpg',
+          'Divapriya B.jpg',
+          'Kavya Sri V.jpg'
+        ]} />
+      </Box>
+    </Box>
   );
 };
 

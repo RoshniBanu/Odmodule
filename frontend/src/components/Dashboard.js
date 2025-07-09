@@ -14,6 +14,7 @@ import {
   CardActions,
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
+import Contributors from './Contributors';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -169,28 +170,39 @@ const Dashboard = () => {
   };
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            OD Application
-          </Typography>
-          <Button color="inherit" onClick={handleLogout}>
-            Logout
-          </Button>
-        </Toolbar>
-      </AppBar>
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" gutterBottom>
-            Dashboard
-          </Typography>
-          <Typography variant="subtitle1" gutterBottom>
-            Welcome, {user.name} ({user.role})
-          </Typography>
-          {renderDashboardContent()}
-        </Paper>
-      </Container>
+    <Box display="flex" flexDirection="column" minHeight="100vh">
+      <Box sx={{ flexGrow: 1 }}>
+        <AppBar position="static">
+          <Toolbar>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              OD Application
+            </Typography>
+            <Button color="inherit" onClick={handleLogout}>
+              Logout
+            </Button>
+          </Toolbar>
+        </AppBar>
+        <Container maxWidth="lg" sx={{ mt: 4 }}>
+          <Paper elevation={3} sx={{ p: 4 }}>
+            <Typography variant="h4" gutterBottom>
+              Dashboard
+            </Typography>
+            <Typography variant="subtitle1" gutterBottom>
+              Welcome, {user.name} ({user.role})
+            </Typography>
+            {renderDashboardContent()}
+          </Paper>
+        </Container>
+      </Box>
+      <Box sx={{ marginTop: 'auto', mb: 2 }}>
+        <Contributors images={[
+          'Abhijith M.jpg',
+          'Roshni Banu S.jpg',
+          'Deepak R.jpg',
+          'Divapriya B.jpg',
+          'Kavya Sri V.jpg'
+        ]} />
+      </Box>
     </Box>
   );
 };
