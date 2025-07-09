@@ -21,6 +21,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import axios from "axios";
+import Contributors from './Contributors';
 
 const HODDashboard = () => {
   const [requests, setRequests] = useState([]);
@@ -172,147 +173,158 @@ const HODDashboard = () => {
   }
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          HOD Dashboard
-        </Typography>
+    <Box display="flex" flexDirection="column" minHeight="100vh">
+      <Container maxWidth="lg" sx={{ flex: 1 }}>
+        <Box sx={{ mt: 4, mb: 4 }}>
+          <Typography variant="h4" gutterBottom>
+            HOD Dashboard
+          </Typography>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {success}
-          </Alert>
-        )}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          )}
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Student Name</TableCell>
-                <TableCell>Year</TableCell>
-                <TableCell>Event Name</TableCell>
-                <TableCell>Event Type</TableCell>
-                <TableCell>Event Date</TableCell>
-                <TableCell>Start Date</TableCell>
-                <TableCell>End Date</TableCell>
-                <TableCell>Reason</TableCell>
-                <TableCell>Advisor Comment</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Proof Verification Status</TableCell>
-                <TableCell>Brochure</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request._id}>
-                  <TableCell>{request.student?.name || "N/A"}</TableCell>
-                  <TableCell>{request.student?.year || "N/A"}</TableCell>
-                  <TableCell>{request.eventName}</TableCell>
-                  <TableCell>{request.eventType}</TableCell>
-                  <TableCell>
-                    {request.eventDate
-                      ? new Date(request.eventDate).toLocaleDateString()
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {request.startDate
-                      ? new Date(request.startDate).toLocaleDateString()
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {request.endDate
-                      ? new Date(request.endDate).toLocaleDateString()
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>{request.reason}</TableCell>
-                  <TableCell>{request.advisorComment || "-"}</TableCell>
-                  <TableCell>{getStatusChip(request.status)}</TableCell>
-                  <TableCell>
-                    {getProofVerificationChip(
-                      request.proofSubmitted,
-                      request.proofVerified,
-                      request.proofRejected
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {request.brochure && (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() =>
-                          window.open(
-                            `http://localhost:5000/${request.brochure}`,
-                            "_blank"
-                          )
-                        }
-                        sx={{ ml: 1 }}
-                      >
-                        View Brochure
-                      </Button>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {(request.status === "approved_by_advisor" ||
-                      request.status === "forwarded_to_hod") && (
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          size="small"
-                          onClick={() => handleApprove(request._id)}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="error"
-                          size="small"
-                          onClick={() => handleReject(request._id)}
-                        >
-                          Reject
-                        </Button>
-                      </Box>
-                    )}
-                  </TableCell>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Student Name</TableCell>
+                  <TableCell>Year</TableCell>
+                  <TableCell>Event Name</TableCell>
+                  <TableCell>Event Type</TableCell>
+                  <TableCell>Event Date</TableCell>
+                  <TableCell>Start Date</TableCell>
+                  <TableCell>End Date</TableCell>
+                  <TableCell>Reason</TableCell>
+                  <TableCell>Advisor Comment</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Proof Verification Status</TableCell>
+                  <TableCell>Brochure</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
+              </TableHead>
 
-      <Dialog open={openDialog} onClose={handleDialogClose}>
-        <DialogTitle>Add Comment</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Comment"
-            fullWidth
-            multiline
-            rows={4}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogClose}>Cancel</Button>
-          <Button onClick={() => handleSubmit("approve")} color="success">
-            Approve
-          </Button>
-          <Button onClick={() => handleSubmit("reject")} color="error">
-            Reject
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request._id}>
+                    <TableCell>{request.student?.name || "N/A"}</TableCell>
+                    <TableCell>{request.student?.year || "N/A"}</TableCell>
+                    <TableCell>{request.eventName}</TableCell>
+                    <TableCell>{request.eventType}</TableCell>
+                    <TableCell>
+                      {request.eventDate
+                        ? new Date(request.eventDate).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {request.startDate
+                        ? new Date(request.startDate).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {request.endDate
+                        ? new Date(request.endDate).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>{request.reason}</TableCell>
+                    <TableCell>{request.advisorComment || "-"}</TableCell>
+                    <TableCell>{getStatusChip(request.status)}</TableCell>
+                    <TableCell>
+                      {getProofVerificationChip(
+                        request.proofSubmitted,
+                        request.proofVerified,
+                        request.proofRejected
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {request.brochure && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() =>
+                            window.open(
+                              `http://localhost:5000/${request.brochure}`,
+                              "_blank"
+                            )
+                          }
+                          sx={{ ml: 1 }}
+                        >
+                          View Brochure
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {(request.status === "approved_by_advisor" ||
+                        request.status === "forwarded_to_hod") && (
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                            onClick={() => handleApprove(request._id)}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            onClick={() => handleReject(request._id)}
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+
+        <Dialog open={openDialog} onClose={handleDialogClose}>
+          <DialogTitle>Add Comment</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Comment"
+              fullWidth
+              multiline
+              rows={4}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDialogClose}>Cancel</Button>
+            <Button onClick={() => handleSubmit("approve")} color="success">
+              Approve
+            </Button>
+            <Button onClick={() => handleSubmit("reject")} color="error">
+              Reject
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+      <Box sx={{ marginTop: 'auto', mb: 2 }}>
+        <Contributors images={[
+          'Abhijith M.jpg',
+          'Roshni Banu S.jpg',
+          'Deepak R.jpg',
+          'Divapriya B.jpg',
+          'Kavya Sri V.jpg'
+        ]} />
+      </Box>
+    </Box>
   );
 };
 
