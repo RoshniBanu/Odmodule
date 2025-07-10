@@ -316,13 +316,7 @@ const HODDashboard = () => {
         </Dialog>
       </Container>
       <Box sx={{ marginTop: 'auto', mb: 2 }}>
-        <Contributors images={[ 
-          'Abhijith M.jpg',
-          'Roshni Banu S.jpg',
-          'Divapriya B.jpg',
-          'Kavya Sri V.jpg',
-          'Deepak R.jpg'
-        ]} />
+        <Contributors />
       </Box>
     </Box>
   );
