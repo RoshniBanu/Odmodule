@@ -759,7 +759,7 @@ const AdminManagement = () => {
   }
 
   return (
-    <Box display="flex" flexDirection="column" minHeight="100vh">
+    <>
       <Box p={3}>
         <Typography variant="h4" gutterBottom>
           Admin Management
@@ -1236,6 +1236,17 @@ const AdminManagement = () => {
         </Box>
       </Box>
 
+      {/* Contributors Section */}
+      <Box sx={{ marginTop: 'auto', mb: 2 }}>
+        <Contributors images={[
+          'Abhijith M.jpg',
+          'Roshni Banu S.jpg',
+          'Divapriya B.jpg',
+          'Kavya Sri V.jpg',
+          'Deepak R.jpg'
+        ]} />
+      </Box>
+
       {/* Edit Event Type Dialog */}
       <Dialog open={editDialogOpen} onClose={handleCloseEditDialog}>
         <DialogTitle>Edit Event Type Name</DialogTitle>
@@ -1318,16 +1329,7 @@ const AdminManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      <Box sx={{ marginTop: 'auto', mb: 2 }}>
-        <Contributors images={[
-          'Abhijith M.jpg',
-          'Roshni Banu S.jpg',
-          'Deepak R.jpg',
-          'Divapriya B.jpg',
-          'Kavya Sri V.jpg'
-        ]} />
-      </Box>
-    </Box>
+    </>
   );
 };
 
