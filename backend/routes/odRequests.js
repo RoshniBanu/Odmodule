@@ -175,7 +175,6 @@ router.post(
         facultyAdvisor: studentDoc.facultyAdvisor._id,
         classAdvisor: studentDoc.facultyAdvisor._id, // Using faculty advisor as class advisor
         hod: hod._id,
-        year: studentDoc.year,
         notifyFaculty: notifyFaculty || [],
         brochure: req.file ? req.file.path : null,
       });
@@ -191,7 +190,7 @@ router.post(
         {
           name: user.name,
           registerNo: studentDoc.registerNo,
-          year: studentDoc.year,
+          year: studentDoc.currentYear,
         },
         {
           eventName,
@@ -232,7 +231,7 @@ router.get(
       return res.status(404).json({ message: "Student profile not found" });
     }
     const odRequests = await ODRequest.find({ student: studentDoc._id })
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("classAdvisor", "name email")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
@@ -249,7 +248,7 @@ router.get(
   faculty,
   asyncHandler(async (req, res) => {
     const odRequests = await ODRequest.find({ classAdvisor: req.user._id })
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("classAdvisor", "name email")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
@@ -276,7 +275,7 @@ router.put(
     );
 
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("facultyAdvisor", "name email");
 
     if (!odRequest) {
@@ -342,7 +341,7 @@ router.put(
         {
           name: odRequest.student.name,
           registerNo: odRequest.student.registerNo,
-          year: odRequest.student.year,
+          year: odRequest.student.currentYear,
         },
         {
           eventName: odRequest.eventName,
@@ -365,7 +364,7 @@ router.put(
         {
           name: odRequest.student.name,
           registerNo: odRequest.student.registerNo,
-          year: odRequest.student.year,
+          year: odRequest.student.currentYear,
         },
         {
           eventName: odRequest.eventName,
@@ -396,7 +395,7 @@ router.get(
   faculty,
   asyncHandler(async (req, res) => {
     const odRequests = await ODRequest.find({ classAdvisor: req.user.id })
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
     res.json(odRequests);
@@ -455,7 +454,7 @@ router.post(
   upload.single("proofDocument"),
   asyncHandler(async (req, res) => {
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("notifyFaculty", "email name");
 
     if (!odRequest) {
@@ -491,7 +490,7 @@ router.post(
           name: odRequest.student.name,
           registerNo: odRequest.student.registerNo,
           department: odRequest.department,
-          year: odRequest.year,
+          year: odRequest.currentYear,
         },
         {
           eventName: odRequest.eventName,
@@ -538,7 +537,7 @@ router.get(
 
       console.log("Found student document:", studentDoc._id);
       const odRequests = await ODRequest.find({ student: studentDoc._id })
-        .populate("student", "name registerNo year")
+        .populate("student", "name registerNo yearOfJoin currentYear")
         .populate("classAdvisor", "name email")
         .populate("notifyFaculty", "name email")
         .sort({ createdAt: -1 });
@@ -561,7 +560,7 @@ router.get(
 router.get("/advisor", protect, faculty, async (req, res) => {
   try {
     const requests = await ODRequest.find({ classAdvisor: req.user.id })
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .sort({ createdAt: -1 });
     res.json(requests);
   } catch (err) {
@@ -579,7 +578,7 @@ router.get(
   hod,
   asyncHandler(async (req, res) => {
     const odRequests = await ODRequest.find()
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("classAdvisor", "name email")
       .populate("notifyFaculty", "name email")
       .sort({ createdAt: -1 });
@@ -599,7 +598,7 @@ router.put(
   asyncHandler(async (req, res) => {
     const { status, remarks } = req.body;
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("classAdvisor", "name")
       .populate("hod", "name")
       .populate("notifyFaculty", "name email");
@@ -646,7 +645,7 @@ router.put(
   hod,
   asyncHandler(async (req, res) => {
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("classAdvisor", "name")
       .populate("hod", "name")
       .populate("notifyFaculty", "name email");
@@ -687,7 +686,7 @@ router.get(
   student,
   asyncHandler(async (req, res) => {
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("classAdvisor", "name")
       .populate("hod", "name");
 
@@ -804,7 +803,7 @@ router.get(
 
     drawTableRowContent(
       doc,
-      [`${itemCounter++}. Year:`, odRequest.student.year],
+      [`${itemCounter++}. Year:`, odRequest.student.currentYear],
       studentDetailsCellWidths,
       studentDetailsStartX,
       studentDetailsCurrentY,
@@ -1240,7 +1239,7 @@ router.get(
 
     // Then fetch all relevant requests
     const odRequests = await ODRequest.find(query)
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("classAdvisor", "name email")
       .populate("hod", "name email")
       .sort({ lastStatusChangeAt: -1 });
@@ -1326,9 +1325,8 @@ router.get(
       throw new Error("Not authorized as admin");
     }
 
-    const stats = await User.aggregate([
-      { $match: { role: "student" } },
-      { $group: { _id: "$year", count: { $sum: 1 } } },
+    const stats = await Student.aggregate([
+      { $group: { _id: "$currentYear", count: { $sum: 1 } } },
       { $project: { year: "$_id", count: 1, _id: 0 } },
       { $sort: { year: 1 } },
     ]);
@@ -1346,7 +1344,7 @@ router.get(
   faculty,
   asyncHandler(async (req, res) => {
     const odRequest = await ODRequest.findById(req.params.id)
-      .populate("student", "name registerNo year")
+      .populate("student", "name registerNo yearOfJoin currentYear")
       .populate("classAdvisor", "name")
       .populate("hod", "name");
 
@@ -1377,7 +1375,7 @@ router.get(
     doc.fontSize(12).text(`Student Name: ${odRequest.student.name}`);
     doc.text(`Register Number: ${odRequest.student.registerNo}`);
     doc.text(`Department: Computer Science Engineering`);
-    doc.text(`Year: ${odRequest.student.year}`);
+    doc.text(`Year: ${odRequest.student.currentYear}`);
     doc.moveDown();
     doc.text(`Event Name: ${odRequest.eventName}`);
     doc.text(
@@ -1416,7 +1414,7 @@ const generateODLetterPDF = async (odRequest, outputPath) => {
     doc.fontSize(12).text(`Student Name: ${odRequest.student.name}`);
     doc.text(`Register Number: ${odRequest.student.registerNo}`);
     doc.text(`Department: Computer Science Engineering`);
-    doc.text(`Year: ${odRequest.student.year}`);
+    doc.text(`Year: ${odRequest.student.currentYear}`);
     // Add this line for event type
     doc.text(`Event Type: ${odRequest.eventType}`);
     doc.moveDown();
@@ -1565,7 +1563,7 @@ const generateApprovedPDF = async (odRequest, outputPath) => {
     drawLabeledRow("Name:", odRequest.student.name);
     drawLabeledRow("Register Number:", odRequest.student.registerNo || "N/A");
     drawLabeledRow("Department:", "Computer Science Enginnering");
-    drawLabeledRow("Year:", odRequest.student.year);
+    drawLabeledRow("Year:", odRequest.student.currentYear);
     drawLabeledRow("Event Type:", odRequest.eventType);
     drawLabeledRow("Event Name:", odRequest.eventName);
     drawLabeledRow("Reason:", odRequest.reason);
